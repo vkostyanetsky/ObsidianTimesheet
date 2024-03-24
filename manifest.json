@@ -1,0 +1,10 @@
+{
+	"id": "timesheet",
+	"name": "Timesheet",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.3",
+	"description": "Timesheet generator for tasks in daily notes.",
+	"author": "vkostyanetsky",
+	"authorUrl": "https://github.com/vkostyanetsky",
+	"isDesktopOnly": false
+}
