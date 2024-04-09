@@ -1,5 +1,12 @@
+export interface Task {
+    timeLogs: TimeLog[];
+	duration: number;
+	number: string;
+}
+
 export interface TimeLog {
-    duration: number;
-    title: string;
-    task: string;
+    taskNumber: string;
+    interval: string;
+	duration: number;
+	title: string;    
 }
