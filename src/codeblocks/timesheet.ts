@@ -8,6 +8,7 @@ import TimeLogsParser from "../parser";
 import { Task } from "src/types";
 
 export default class TimesheetCodeBlock {
+
 	public static async render(
 		plugin: Timesheet,
 		src: string,
@@ -38,9 +39,20 @@ export default class TimesheetCodeBlock {
                 }
             })
 
-            const lines: string[] = ["> [!summary] Timesheet"]
+            if (plugin.settings.roundUpTime) {
+                tasks.forEach((task, taskIndex) => {  
+                    tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
+                }); 
+            }
+
+            let totalDuration = 0;
+            tasks.forEach(function(task) {
+                totalDuration += task.duration;
+            });
+
+            const lines: string[] = [`> [!summary] Timesheet (${this.getDurationPresentation(totalDuration)})`]
             tasks.forEach((task) => {
-                lines.push(`>- ${task.number} (${task.duration / 1000 / 60}m)`)
+                lines.push(`>- ${task.number} (${this.getDurationPresentation(task.duration)})`)
                 task.timeLogs.forEach((log) => {
                     lines.push(`>    - ${log.title}`)
                 })                
@@ -49,6 +61,34 @@ export default class TimesheetCodeBlock {
             MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin)
 		}
 	}
+
+    private static roundTaskDuration(plugin: Timesheet, duration: number) {
+        let result = duration;
+
+        const interval = plugin.settings.timeRoundingInterval * 60 * 1000;
+        result = Math.ceil(result / interval) * interval;
+
+        return result;
+    }
+
+    private static getDurationPresentation(duration: number) {
+        let minutes = duration / 1000 / 60;
+        const hours = Math.floor(minutes / 60);
+
+        minutes -= hours * 60;
+
+        const resultItems = [];
+
+        if (hours > 0) {
+            resultItems.push(`${hours}h`)
+        }
+
+        if (minutes > 0) {
+            resultItems.push(`${minutes}m`)
+        }
+
+        return resultItems.join(" ")
+    }
 
     private static getTaskNumberPatterns(codeblockText: string, plugin: Timesheet) {
         let patternsString = codeblockText.trim();
