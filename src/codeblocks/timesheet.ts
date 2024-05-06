@@ -50,17 +50,36 @@ export default class TimesheetCodeBlock {
                 totalDuration += task.duration;
             });
 
-            const lines: string[] = [`> [!summary] Timesheet (${this.getDurationPresentation(totalDuration)})`]
+            let totalDurationPresentation = this.getDurationPresentation(totalDuration);
+            if (totalDurationPresentation == "") {
+                totalDurationPresentation = "0h 0m"
+            }
+
+            const lines: string[] = [`> [!summary] Timesheet (${totalDurationPresentation})`]
             tasks.forEach((task) => {
-                lines.push(`>- ${task.number} (${this.getDurationPresentation(task.duration)})`)
-                task.timeLogs.forEach((log) => {
-                    lines.push(`>    - ${log.title}`)
+                lines.push(`> `)
+                lines.push(`> JIRA:${task.number} (${this.getDurationPresentation(task.duration)})`)
+                const titles: string[] = [];
+                task.timeLogs.forEach((log) => {                    
+                    let title = log.title.replace(task.number, "")
+                    if (plugin.settings.hideEmptyBrackets) {
+                        title = title.replace(/\(\s*\)/g, "")
+                    }
+                    if (titles.indexOf(title) == -1) {
+                        lines.push(`> - ${title}`)
+                        titles.push(title)
+                    }
                 })                
             })
 
             MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin)
 		}
 	}
+
+
+    private static hideTaskNumber(plugin: Timesheet, title: string, taskNumber: string) {
+
+    }
 
     private static roundTaskDuration(plugin: Timesheet, duration: number) {
         let result = duration;
