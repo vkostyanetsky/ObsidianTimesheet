@@ -29,7 +29,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const { containerEl } = this;
-
+    
 		containerEl.empty();
 
 		new Setting(containerEl)

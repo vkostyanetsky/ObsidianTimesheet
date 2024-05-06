@@ -14,10 +14,10 @@ export default class TimesheetCodeBlock {
 		src: string,
 		body: HTMLElement,
 		ctx: MarkdownPostProcessorContext
-	) {
-		const noteFile = plugin.app.workspace.getActiveFile();
-
-		if (noteFile != null) {            
+	) {            
+        const noteFile = plugin.app.vault.getFileByPath(ctx.sourcePath)
+        
+        if (noteFile != null) {
             const taskNumberPatterns = this.getTaskNumberPatterns(src, plugin);
             const noteText = await plugin.app.vault.read(noteFile);
             const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
@@ -73,7 +73,7 @@ export default class TimesheetCodeBlock {
             })
 
             MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin)
-		}
+            }
 	}
 
 
