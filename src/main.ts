@@ -38,13 +38,14 @@ export default class Timesheet extends Plugin {
 			"timesheet",
 			async (src, el, ctx) => {
 				try {
+                    console.log(ctx);
 					const root = el.createEl("div");
 					const body = root.createEl("div");
 
 					await TimesheetCodeBlock.render(this, src, body, ctx);
 				} catch (error) {
 					el.createEl("h3", {
-						text: `Failed to show fast: ${error.message}`,
+						text: `Failed to show timesheet: ${error.message}`,
 					});
 				}
 			}
