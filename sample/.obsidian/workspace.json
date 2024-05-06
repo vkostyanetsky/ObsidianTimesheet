@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "a57c71fa995920a6",
+        "id": "2ec98c495a32b5e2",
         "type": "tabs",
         "children": [
           {
-            "id": "7178d3a546311c05",
+            "id": "137eb43478e51d8a",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -146,7 +146,7 @@
       "command-palette:Open command palette": false
     }
   },
-  "active": "7178d3a546311c05",
+  "active": "137eb43478e51d8a",
   "lastOpenFiles": [
     "Welcome.md",
     "Daily Notes/2024-04-01.md",
