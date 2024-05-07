@@ -5,18 +5,12 @@ export interface TimesheetSettings {
     defaultTaskNumberPatterns: string;
     roundUpTime: boolean;
     timeRoundingInterval: number;
-	hideNumbers: boolean;
-	hideTimeIntervals: boolean;
-	hideEmptyBrackets: boolean;
 }
 
 export const DEFAULT_SETTINGS: TimesheetSettings = {
     defaultTaskNumberPatterns: "",
     roundUpTime: false,
     timeRoundingInterval: 15,
-	hideNumbers: true,
-	hideTimeIntervals: true,
-	hideEmptyBrackets: true,
 };
 
 export class TimesheetSettingTab extends PluginSettingTab {
@@ -42,20 +36,6 @@ export class TimesheetSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.defaultTaskNumberPatterns)
 					.onChange(async (value) => {
 						this.plugin.settings.defaultTaskNumberPatterns = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-        new Setting(containerEl)
-			.setName("Hide empty brackets")
-			.setDesc(
-				"Hide empty brackets — \"()\" — in task titles, which can appear after applying the settings above."
-			)
-			.addToggle((text) =>
-				text
-					.setValue(this.plugin.settings.hideEmptyBrackets)
-					.onChange(async (value) => {
-						this.plugin.settings.hideEmptyBrackets = value;
 						await this.plugin.saveSettings();
 					})
 			);

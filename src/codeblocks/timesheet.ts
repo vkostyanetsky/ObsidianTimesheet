@@ -62,9 +62,7 @@ export default class TimesheetCodeBlock {
                 const titles: string[] = [];
                 task.timeLogs.forEach((log) => {                    
                     let title = log.title.replace(task.number, "")
-                    if (plugin.settings.hideEmptyBrackets) {
-                        title = title.replace(/\(\s*\)/g, "")
-                    }
+                    title = title.replace(/\(\s*\)/g, "")
                     if (titles.indexOf(title) == -1) {
                         lines.push(`> - ${title}`)
                         titles.push(title)

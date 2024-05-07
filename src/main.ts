@@ -38,7 +38,6 @@ export default class Timesheet extends Plugin {
 			"timesheet",
 			async (src, el, ctx) => {
 				try {
-                    console.log(ctx);
 					const root = el.createEl("div");
 					const body = root.createEl("div");
 
