@@ -55,23 +55,40 @@ export default class TimesheetCodeBlock {
                 totalDurationPresentation = "0h 0m"
             }
 
-            const lines: string[] = [`> [!summary] Timesheet (${totalDurationPresentation})`]
+            const lines: string[] = []
+
+            if (plugin.settings.templateHeader) {
+                lines.push(plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation))
+            }
+
             tasks.forEach((task) => {
-                lines.push(`> `)
-                lines.push(`> JIRA:${task.number} (${this.getDurationPresentation(task.duration)})`)
-                const titles: string[] = [];
-                task.timeLogs.forEach((log) => {                    
-                    let title = log.title.replace(task.number, "")
-                    title = title.replace(/\(\s*\)/g, "")
-                    if (titles.indexOf(title) == -1) {
-                        lines.push(`> - ${title}`)
-                        titles.push(title)
-                    }
-                })                
+                if (plugin.settings.templateTask) {
+                    lines.push(
+                        plugin.settings.templateTask
+                        .replace("{taskNumber}", task.number)
+                        .replace("{taskDuration}", this.getDurationPresentation(task.duration))
+                    );
+                }
+
+                if (plugin.settings.templateTaskLog) {
+                    const logs: string[] = [];
+                    task.timeLogs.forEach((log) => {                    
+                        let title = log.title.replace(task.number, "")
+                        title = title.replace(/\(\s*\)/g, "")
+                        if (logs.indexOf(title) == -1) {
+                            lines.push(plugin.settings.templateTaskLog.replace("{taskLogTitlePrettified}", title))
+                            logs.push(title)
+                        }
+                    })                
+                }
             })
 
-            MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin)
+            if (plugin.settings.templateFooter) {
+                lines.push(plugin.settings.templateFooter)
             }
+
+            MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin)
+        }
 	}
 
 
