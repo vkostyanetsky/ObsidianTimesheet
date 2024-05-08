@@ -37,7 +37,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Default task number patterns")
 			.setDesc(
-				'You can specify task number patterns in a `timesheet` code block or simply set default ones here: it will affect all `timesheet` code blocks without patterns specified.'
+				'You can specify task number patterns in a timesheet code block or set default ones here: it will affect all timesheet code blocks without patterns specified.'
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>
