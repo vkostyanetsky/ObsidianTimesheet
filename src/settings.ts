@@ -89,7 +89,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Header")
 			.setDesc(
-				"Accessible macros: {tasksDuration} (total duration of all tasks in a note)."
+				"Macros: {tasksDuration} — total duration of all tasks in a note."
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>
@@ -104,7 +104,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Task")
 			.setDesc(
-				"Accessible macros: {taskNumber} (number of a task), {taskDuration} (total duration of a task)."
+				"Macros: {taskNumber} — number of a task, {taskDuration} — total duration of a task."
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>
@@ -119,7 +119,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Task log")
 			.setDesc(
-				"Accessible macros: {taskLogTitlePrettified} (prettified task log title)."
+				"Macros: {taskLogTitlePrettified} — prettified task log title."
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>
@@ -134,7 +134,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Footer")
 			.setDesc(
-				"No accessible macros."
+				"No macros."
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>
