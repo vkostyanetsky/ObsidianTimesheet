@@ -81,8 +81,7 @@ FBI-1 (4h)          ← task
                     ← footer (can be omitted)
 ```
 
-> 
-[!tip]
+> [!tip]
 > Additionally, I use the [JIRA Issue](https://github.com/marc0l92/obsidian-jira-issue) plugin. In its settings, I set “Inline issue prefix” to “JIRA:”. For instance, it allows me to type “JIRA:FBI-1” and see an active link to the JIRA issue FBI-1, including its title and actual status.
 >
 > Then I added the same prefix to my task template for Timesheet:
