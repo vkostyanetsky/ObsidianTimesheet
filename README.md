@@ -52,7 +52,7 @@ The full answer: it uses templates you can define. Templates are simple regular 
 By default, there is only one template set in the plugin's settings: `[A-Z]+-\d+` (`[A-Z]` here is a one or more capital letters, while `\d+` means "any number"). It's enough to catch almost any JIRA task number.
 
 > [!tip]
-> Though, it's probably a good idea to set specific templates for your use case to avoid false positives: for instance above it can be `TASKS-\d+`.
+> Though, it's probably a good idea to set specific templates for your use case to avoid false positives. For instance I mentioned above it can be `TASKS-\d+`.
 
 There are two ways to define task number templates. Firstly, you can enlist them right in a `timesheet` code block (one row — one template). Like this:
 
@@ -81,10 +81,12 @@ TASKS-1 (4h)                 ← task line
 ```
 
 > [!tip]
-> Personally, I use [JIRA Issue](https://github.com/marc0l92/obsidian-jira-issue) plugin to automatically render links to JIRA issues in my notes. So, I changed my task line template this way:
+> I use [JIRA Issue](https://github.com/marc0l92/obsidian-jira-issue) plugin to automatically render links to JIRA issues in my notes. In its settings, I set "Inline issue prefix" to "JIRA:". It allows me to type JIRA:TASKS-1 and see active link to JIRA, including issue' title and actual status.
+>
+> Then I changed my task line template for Timesheet this way:
 >
 > ```
 > >
 > > JIRA:{taskNumber} ({taskDuration})
 > ```
-> Prefix "JIRA" here is set as "Inline issue prefix" in "JIRA Issue" plugin's settings, so Timesheet shows me active links to JIRA instead of plain tasks numbers. 
+> Thanks to JIRA Issue, Timesheet now also shows me active links to JIRA instead of plain tasks numbers. 
