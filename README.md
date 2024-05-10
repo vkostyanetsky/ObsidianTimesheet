@@ -21,7 +21,7 @@ So, a part of your daily note may look like this:
 - [ ] 16:00-18:00 Fix a problem on the production server (TASKS-1)
 ```
 
-There are three tasks listed, two of which are related to the same JIRA task. This plugin is able to group and round time you spent on JIRA tasks and show you a convenient report. You can use it for the next daily meeting or to log time you spent to JIRA.
+There are three tasks listed, two of which are related to the same JIRA task. This plugin is able to group and round time you spent on JIRA tasks and show you a convenient report. You can use it for the next daily meeting or to quick calculation of spent time to log it in JIRA.
 
 Basically, you just need to insert a `timesheet` code block anywhere in the daily note and see something like this:
 
@@ -58,11 +58,28 @@ There are two ways to define task number templates. Firstly, you can enlist them
 
 ````
 ```timesheet
-TASKS-\d*
-CLSFD-\d*
+TASKS-\d+
+CLSFD-\d+
 ```
 ````
 
 This will affect only this code block. 
 
-You also can do it globally and keep code blocks empty by defining task number templates in plugin' settings. The format is the same: one template per one row.
+You also can do it globally and keep code blocks empty by defining task number templates in plugin's settings (have a look at "Default task number patterns" setting). 
+
+The format is the same: one template per one row. The global setting will affect all `timesheet` code block, except ones where templates are set.
+
+### How can I change how it renders?
+
+By default the report uses a callout to show you information it can collect. You can change using plugin's settings; there are four template intended to this task in "Templates" section. 
+
+Basically, you can specify the header, a task line, a log line, and the footer.
+
+> [!tip]
+> Personally, I use [JIRA Issue](https://github.com/marc0l92/obsidian-jira-issue) plugin to automatically render links to JIRA tasks in my notes. So, I changed my task like template looks like this:
+>
+> ```
+> >
+> JIRA:{taskNumber} ({taskDuration})
+> ```
+> Prefix "JIRA" here is also set as "Inline issue prefix" in JIRA issue settings, so Timesheet shows me working links to JIRA instead of dry tasks numbers.
