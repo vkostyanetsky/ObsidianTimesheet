@@ -2,23 +2,23 @@
 
 [![ESLint](https://github.com/vkostyanetsky/ObsidianTimesheet/actions/workflows/eslint.yml/badge.svg)](https://github.com/vkostyanetsky/ObsidianTimesheet/actions/workflows/eslint.yml)
 
-It is a plugin for [Obsidian](https://obsidian.md) designed to generate timesheets for tasks in your daily notes.
+It is a plugin for [Obsidian](https://obsidian.md) designed to generate timesheets for tasks in daily notes.
 
 ## 🙂 How does it work?
 
 I assume you use daily notes to log time you spent on doing some tasks you track in JIRA.
 
 > [!note]
-> You can track your task anywhere else. I call it JIRA since this one it pretty popular and, what's more important, the functionality I need to mention has no significant difference when it comes to a specific task tracker.
+> You can track your tasks anywhere else, it's doesn't really matter. I call it JIRA since this software it pretty popular and, what's more important, its functionality I need to mention has no significant difference when it comes to a specific task tracker.
 
-JIRA allows you to create different projects; each project has its unique prefix for tasks inside. For instance, if a project' prefix is "INTERNAL", it has tasks like INTERNAL-1, INTERNAL-2, etc. 
+JIRA allows you to create different projects for tasks; each project has its unique prefix for tasks belongs to it. For instance, if a project's prefix is "TASKS", it has tasks like "TASKS-1", "TASKS-2", etc. 
 
 So, a part of your daily note may look like this:
 
 ```
-- [ ] 10:00-12:00 Look around and find out what is wrong with the production server (TASK-1)
-- [ ] 12:00-16:00 Estimate a feature development (TASK-2)
-- [ ] 16:00-18:00 Make a fix for the production server (TASK-1)
+- [ ] 10:00-12:00 Look around and find out what is wrong with the production server (TASKS-1)
+- [ ] 12:00-16:00 Estimate a feature development (TASKS-2)
+- [ ] 16:00-18:00 Fix a problem on the production server (TASKS-1)
 ```
 
 There are three tasks listed, two of which have the same JIRA task number. This plugin is able to group and round time you spent on all the tasks and show you a convenient report. You can use it for the next daily meeting or to log time you spent to JIRA.
@@ -26,12 +26,12 @@ There are three tasks listed, two of which have the same JIRA task number. This 
 So, basically, you just insert a `timesheet` code block anywhere in the daily note and see something like this:
 
 ```
-TASK-1 (4h)
+TASKS-1 (4h)
 
-- Find out what is wrong on the production server
-- Make a fix for the production server
+- Look around and find out what is wrong with the production server
+- Fix a problem on the production server
 
-TASK-2 (4h)
+TASKS-2 (4h)
 
 - Estimate a feature development
 ```
