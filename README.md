@@ -14,7 +14,13 @@ Well, I assume you use daily notes to log time you spent on doing some tasks. Fo
 - [ ] 16:00-18:00 Make a fix for the production server (TASK-1)
 ```
 
-This plugin can parse this information, group and round time spent and show you a report you can use for the next daily meeting or to log spent time to JIRA.
+There are three tasks listed, two of which have the same number.
+
+Let's clarify what I mean when I say "task number". I just, basically, assume you use something like JIRA to track tasks. It allows you to create different projects; each project has its unique prefix for tasks inside.
+
+For instance, if a project' prefix is "INTERNAL", it has tasks like INTERNAL-1, INTERNAL-2, etc., and the template for this project is `INTERNAL-\d*`, where `\d*` means "any number".
+
+This plugin find task numbers, parse tasks in a note, groups and rounds time spent on all the tasks which belogs to each task number and show you a report. You can use it for the next daily meeting or to log spent time to JIRA.
 
 Basically, you just insert a `timesheet` code block anywhere in this note and see something like this:
 
@@ -35,14 +41,12 @@ You can see more examples in the sample vault.
 
 ### How this plugin finds task numbers?
 
-It uses templates you define. There are two ways to do so.
+It uses templates you define. Templates are simple regular expressions which the plugin applies to each task title to find a number in it.
 
-> [!NOTE]  
-> Let's clarify what I mean when I sey "templates". I basically assume you use something like JIRA to track tasks. It allows you to create different projects; each project has its unique prefix for tasks inside. For instance, if a project' prefix is "INTERNAL", it has tasks like INTERNAL-1, INTERNAL-2, etc.
-> 
-> So the template for this project is `INTERNAL-\d*`, where `\d*` means "any number".
+> [!NOTE]
+> I used to think that regular expressions mechanic is a way too complex tool for this task, but then I was like "oh, come on, who is going to use this, after all? let's be honest, a nerd like you and both of you know how regexps looks like" :)
 
-Firstly, you can enlist templates for task numbers right in a `timesheet` code block. Like this:
+There are two ways to set templates for task numbers. Firstly, you can enlist them right in a `timesheet` code block (one row — one template). Like this:
 
 ````
 ```timesheet
@@ -51,9 +55,6 @@ EXTERNAL-\d*
 ```
 ````
 
-Each row is a regular expression that the plugin use to find a task number. 
+This will affect only this specific code block in the specific note. 
 
-> [!TIP]
-> I previously thought about prefixes for this task which look a bit simplier, but then I was like "oh, come on, who is going to use this? nerds like you and you all know what a regexps looks like" :)
-
-You also can keep code blocks empty and define task number templates in plugin' settings. The format is the same, one template per one row.
+You also can keep code blocks empty and define task number templates in plugin' settings. The format is the same: one template per one row.
