@@ -74,10 +74,11 @@ By default the report uses a callout to show you the report. You can change this
 Basically, you can specify the template for header of the whole report, for a task, for a log line, and for the footer. Macros you can use in each one specified directly in the plugin's settings.
 
 ```
-                             ← header (can be omitted)
-FBI-1 (4h)                   ← task
-- Roam around and find out   ← task log
-                             ← footer (can be omitted)
+                    ← header (can be omitted)
+FBI-1 (4h)          ← task
+- Roam around       ← task log
+- Find out          ← task log
+                    ← footer (can be omitted)
 ```
 
 > [!tip]
