@@ -8,4 +8,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-* Calculation of time a user spends to issues.
+* Calculation of the time a user spends working on issues.
