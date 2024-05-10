@@ -1,0 +1,13 @@
+.text-snippets-class > * > textarea{
+  height: 100%;
+  width: 30em;  
+}
+
+.text-snippets-class > * {
+  height: 100%;
+  width: 40em;
+}
+
+.text-snippets-class {
+  height: 30%;
+}
