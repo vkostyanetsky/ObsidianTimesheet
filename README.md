@@ -9,7 +9,7 @@ It is a plugin for [Obsidian](https://obsidian.md) designed to generate timeshee
 I assume you use daily notes to log time you spent on doing some tasks you track in JIRA.
 
 > [!note]
-> You can track your tasks anywhere else, it's doesn't really matter. I call it JIRA since this software it pretty popular and, what's more important, its functionality I need to mention has no significant difference when it comes to a specific task tracker.
+> You can track your tasks anywhere else, it's doesn't really matter. I call it JIRA since this software it pretty popular and, what's more important, its functionality, which I should mention, is not too different from similar functionality in other trackers.
 
 JIRA allows you to create different projects for tasks; each project has its unique prefix for tasks belongs to it. For instance, if a project's prefix is "TASKS", it has tasks like "TASKS-1", "TASKS-2", etc. 
 
