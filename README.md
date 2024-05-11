@@ -9,7 +9,7 @@ It is a plugin for [Obsidian](https://obsidian.md) designed to generate timeshee
 I assume you use daily notes to log the time you spend solving tasks, which are tracked in JIRA.
 
 > [!note]
-> You can track your tasks anywhere else; it doesn't really matter. I call it JIRA since this software is pretty popular and, what's more important, its functionality, which I should mention, is not too different from similar ones in other trackers.
+> You can track your tasks anywhere else; it doesn't really matter. I say JIRA since this software is pretty popular and, what's more important, its functionality, which I should mention, is not too different from similar ones in other trackers.
 
 JIRA allows you to create different projects for issues; each project has its own unique prefix for issues belong to it. For instance, if the prefix is “FBI”, the project has issues like “FBI-1”, “FBI-2”, etc.
 
@@ -75,7 +75,7 @@ Basically, you can specify the template for header of the whole report, for a ta
 
 ```
                     ← header (can be omitted)
-FBI-1 (4h)          ← task
+FBI-100 (8h)        ← task
 - Roam around       ← task log
 - Find out          ← task log
                     ← footer (can be omitted)
