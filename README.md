@@ -91,3 +91,12 @@ FBI-100 (8h)        ← task
 > > JIRA:{taskNumber} ({taskDuration})
 > ```
 > Voilà! Now Timesheet also shows me active links to JIRA instead of plain, boring issue numbers. 
+
+### Why timesheet is not updating when I'm changing tasks?
+
+It is something like known issue (take a look at the note below). Currently, `timesheet` code block updates when you open a note. You also can trigger updating by starting to edit a code block and then leaving it.
+
+> [!note]
+> I was looking for a way to implement automatical updating for the report in this case, but found nothing except obvious "if a note changes, redraw the whole note". Sounds dumb and inefficient, so I didn't implemented this.
+> 
+> If you know how to solve this problem in a right way, tell me please!
