@@ -82,13 +82,11 @@ FBI-100 (8h)        ← task
 ```
 
 > [!tip]
-> Additionally, I use the [JIRA Issue](https://github.com/marc0l92/obsidian-jira-issue) plugin. In its settings, I set “Inline issue prefix” to “JIRA:”. For instance, it allows me to type “JIRA:FBI-1” and see an active link to the JIRA issue FBI-1, including its title and actual status.
->
-> Then I added the same prefix to my task template for Timesheet:
+> We track issues in JIRA, so I added its URL as a prefix to my task template for Timesheet:
 >
 > ```
 > >
-> > JIRA:{taskNumber} ({taskDuration})
+> > https://my.jira.net/browse/{taskNumber} ({taskDuration})
 > ```
 > Voilà! Now Timesheet also shows me active links to JIRA instead of plain, boring issue numbers. 
 
