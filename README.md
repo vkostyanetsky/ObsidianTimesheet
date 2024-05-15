@@ -69,7 +69,7 @@ You can also do it globally via the plugin's settings: take a look at the “Def
 
 ### How can I change how the report renders?
 
-By default, the report uses [callouts](https://help.obsidian.md/Editing+and+formatting/Callouts) to show you the report. You can change this via the plugin's settings; there are four templates intended to do it in the “Templates” section.
+By default, the report uses [callouts](https://help.obsidian.md/Editing+and+formatting/Callouts) to show you the report. You can change this via the plugin's settings; there are few templates intended to do it in the “Templates” section.
 
 Basically, you can specify the template for header of the whole report, for a task, for a log line, and for the footer. Macros you can use in each one specified directly in the plugin's settings.
 

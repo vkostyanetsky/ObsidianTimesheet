@@ -88,21 +88,6 @@ export class TimesheetSettingTab extends PluginSettingTab {
 
         new Setting(containerEl).setName("Templates").setHeading();
 
-		new Setting(containerEl)
-			.setName("Header")
-			.setDesc(
-				"Macros: {tasksDuration} — total duration of all tasks in a note."
-			)
-            .setClass("text-snippets-class")
-			.addTextArea((text) =>
-				text
-					.setValue(this.plugin.settings.templateHeader)
-					.onChange(async (value) => {
-						this.plugin.settings.templateHeader = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
         new Setting(containerEl)
 			.setName("Duration")
 			.setDesc(
@@ -114,6 +99,21 @@ export class TimesheetSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.templateDuration)
 					.onChange(async (value) => {
 						this.plugin.settings.templateDuration = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Header")
+			.setDesc(
+				"Macros: {tasksDuration} — total duration of all tasks in a note."
+			)
+            .setClass("text-snippets-class")
+			.addTextArea((text) =>
+				text
+					.setValue(this.plugin.settings.templateHeader)
+					.onChange(async (value) => {
+						this.plugin.settings.templateHeader = value;
 						await this.plugin.saveSettings();
 					})
 			);
