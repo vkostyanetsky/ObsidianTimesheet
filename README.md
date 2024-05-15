@@ -82,7 +82,7 @@ FBI-100 (8h)        ← task
 ```
 
 > [!tip]
-> We track issues in JIRA, so I added its URL as a prefix to my task template for Timesheet:
+> We track issues in JIRA, so I added its URL as a prefix to my task template for Timesheet. Like this:
 >
 > ```
 > >
