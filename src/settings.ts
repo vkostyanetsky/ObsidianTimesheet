@@ -49,7 +49,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 					})
 			);
 
-        containerEl.createEl("h2", { text: "Time rounding" });
+        new Setting(containerEl).setName("Time rounding").setHeading();
 
         new Setting(containerEl)
 			.setName("Round up time")
@@ -84,7 +84,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 					})
 			);
 
-        containerEl.createEl("h2", { text: "Templates" });            
+        new Setting(containerEl).setName("Templates").setHeading();
 
 		new Setting(containerEl)
 			.setName("Header")
