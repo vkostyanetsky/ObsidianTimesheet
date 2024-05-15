@@ -70,7 +70,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Time rounding interval")
 			.setDesc(
-				"The interval to which time of a task will be rounded. For instance, if interval is 15m, then 2h 5m will be shown as 2h 30m."
+				"The interval to which time of a task will be rounded. For instance, if interval is 30m, then 2h 5m will be shown as 2h 30m."
 			)
 			.addDropdown((text) =>
 				text
