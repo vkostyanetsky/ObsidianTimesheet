@@ -6,6 +6,7 @@ export interface TimesheetSettings {
     roundUpTime: boolean;
     timeRoundingInterval: number;
     templateHeader: string;
+    templateDuration: string;
     templateTask: string;
     templateTaskLog: string;
     templateFooter: string;
@@ -15,9 +16,10 @@ export const DEFAULT_SETTINGS: TimesheetSettings = {
     defaultTaskNumberPatterns: '',
     roundUpTime: false,
     timeRoundingInterval: 15,
-    templateHeader: '> [!summary] Timesheet ({tasksDuration})',
-    templateTask: '> \n> {taskNumber} ({taskDuration})',
-    templateTaskLog: '> - {taskLogTitlePrettified}',
+    templateHeader: '> [!summary] Timesheet {tasksDuration}',
+    templateDuration: "({duration})",
+    templateTask: '> \n> {taskNumber} {taskDuration}',
+    templateTaskLog: '> - {taskLogTitle}',
     templateFooter: '',
 };
 
@@ -102,6 +104,21 @@ export class TimesheetSettingTab extends PluginSettingTab {
 			);
 
         new Setting(containerEl)
+			.setName("Duration")
+			.setDesc(
+				"Macros: {duration} — duration presentation (for example: 1h 30m)."
+			)
+            .setClass("text-snippets-class")
+			.addTextArea((text) =>
+				text
+					.setValue(this.plugin.settings.templateDuration)
+					.onChange(async (value) => {
+						this.plugin.settings.templateDuration = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+        new Setting(containerEl)
 			.setName("Task")
 			.setDesc(
 				"Macros: {taskNumber} — number of a task, {taskDuration} — total duration of a task."
@@ -119,7 +136,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Task log")
 			.setDesc(
-				"Macros: {taskLogTitlePrettified} — prettified task log title."
+				"Macros: {taskLogTitle} — prettified task log title."
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>

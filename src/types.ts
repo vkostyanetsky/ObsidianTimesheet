@@ -7,6 +7,7 @@ export interface Task {
 export interface TimeLog {
     taskNumber: string;
     interval: string;
+    intervalString: string;
 	duration: number;
-	title: string;    
+	title: string;
 }

@@ -1,43 +1,73 @@
-import {
-    TimeLog,
-} from './types'
-
 import { moment } from "obsidian"
 
 export default class TimeLogsParser {
 
 	public static timeLogs(text: string, taskNumberPatterns: string[]) {
 		const result = [];
-		const regexp = /^- \[.\] \s*(\d{1,2}:\d{1,2})\s*-\s*(\d{1,2}:\d{1,2})(.*)$/gm;
+        const regexp = /^- \[.\] \s*(.*)$/gm;
 
 		let match;
 
-		while ((match = regexp.exec(text)) !== null) {            
-			result.push(
-                this.getTimeLog(
-                    match[1],
-                    match[2],
-                    match[3],
-                    taskNumberPatterns
-                )
-            );
+		while ((match = regexp.exec(text)) !== null) {
+            const timeLog = this.getTimeLog(match[1], taskNumberPatterns);
+
+            if (timeLog !== undefined) {
+                result.push(timeLog);
+            }			
 		}
 
 		return result;
 	}
 
-    private static getTimeLog(startTime: string, endTime: string, title: string, taskNumberPatterns: string[]) {
-        const startTimestamp = this.getTimestamp(startTime);
-        const endTimestamp = this.getTimestamp(endTime);
+    private static getPeriod(title: string) {
+        const regexp = /^((\d{1,2}:\d{1,2})\s*-\s*(\d{1,2}:\d{1,2})).*$/gm;
 
-        const result: TimeLog = {
-            taskNumber: this.getTaskNumber(title, taskNumberPatterns),
-            interval: [startTimestamp, endTimestamp]
-                .map((timestamp) => moment(new Date(timestamp)).format("HH:mm"))
-                .join("-"),
-            duration: endTimestamp - startTimestamp,
-            title: title.trim(),            
-        };
+		let match;
+
+        const result = {
+            "startTime": "00:00",
+            "endTime": "00:00",
+            "string": "",
+        }
+        
+		if ((match = regexp.exec(title.trim())) !== null) {
+            result.startTime = match[2];
+            result.endTime = match[3];
+            result.string = match[1];
+        }
+        console.log(match)
+        return result;
+    }
+
+    private static getTimeLog(title: string, taskNumberPatterns: string[]) {
+
+        const period = this.getPeriod(title)
+
+        let startTimestamp = 0;
+        let endTimestamp = 0;
+        let duration = 0;
+
+        if (period.string) {
+            startTimestamp = this.getTimestamp(period.startTime);
+            endTimestamp = this.getTimestamp(period.endTime);
+            duration = endTimestamp - startTimestamp;
+        }
+
+        const taskNumber = this.getTaskNumber(title, taskNumberPatterns)
+
+        let result = undefined;
+
+        if (duration > 0 || taskNumber != "") {
+            result = {
+                taskNumber: taskNumber,
+                interval: [startTimestamp, endTimestamp]
+                    .map((timestamp) => timestamp == 0 ? "00:00" : moment(new Date(timestamp)).format("HH:mm"))
+                    .join("-"),
+                intervalString: period.string,
+                duration: duration,
+                title: title.trim(),            
+            };            
+        }
 
         return result;
     }
