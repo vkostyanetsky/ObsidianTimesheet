@@ -13,7 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-* Tasks without a time interval now also included into timesheet.
+* Tasks without a time interval now also displayed in a `timesheet` code block.
 * Macro "{taskLogTitlePrettified}" renamed to "{taskLogTitle}".
 
 ## 1.0.0 - 2024-05-10
