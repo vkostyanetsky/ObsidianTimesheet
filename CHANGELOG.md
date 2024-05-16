@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+* Tasks are now sorted by time logged (from most to least).
+
 ### Changed
 
 * Tasks without a time interval now also included into timesheet.

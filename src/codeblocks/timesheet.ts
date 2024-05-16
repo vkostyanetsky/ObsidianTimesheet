@@ -39,6 +39,8 @@ export default class TimesheetCodeBlock {
                 }
             })
 
+            tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
+
             if (plugin.settings.roundUpTime) {
                 tasks.forEach((task, taskIndex) => {  
                     tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
@@ -56,7 +58,7 @@ export default class TimesheetCodeBlock {
             if (plugin.settings.templateHeader) {
                 lines.push(plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation))
             }
-            console.log(tasks)
+
             tasks.forEach((task) => {
                 if (plugin.settings.templateTask) {
                     lines.push(
