@@ -73,7 +73,8 @@ export default class TimesheetCodeBlock {
                     task.timeLogs.forEach((log) => {                    
                         let title = log.title.replace(task.number, "");
                         title = title.replace(log.intervalString, "");
-                        title = title.replace(/\(\s*\)/g, "");
+                        title = title.replace(/\(\s*\)/g, "").trim();
+
                         if (logs.indexOf(title) == -1) {
                             lines.push(plugin.settings.templateTaskLog.replace("{taskLogTitle}", title))
                             logs.push(title)

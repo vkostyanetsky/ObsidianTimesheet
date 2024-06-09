@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.1 - 2024-06-09
+
+### Fixed
+
+* A bug due to which the description of two tasks with identical title, one of which has a time specified, and the other does not, was not shows as a single task log title.
+
 ## 1.1.0 - 2024-05-16
 
 ### Added

@@ -35,7 +35,7 @@ export default class TimeLogsParser {
             result.endTime = match[3];
             result.string = match[1];
         }
-        console.log(match)
+
         return result;
     }
 
