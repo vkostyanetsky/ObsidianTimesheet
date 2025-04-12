@@ -39,7 +39,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Default task number patterns")
 			.setDesc(
-				'You can specify task number patterns in a timesheet code block or set default ones here: it will affect all timesheet code blocks without patterns specified.'
+				"You can specify task number patterns in a timesheet code block (one pattern per line), or set default patterns here — they will apply to all timesheet code blocks that don't have patterns specified."
 			)
             .setClass("text-snippets-class")
 			.addTextArea((text) =>
@@ -56,7 +56,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Round up time")
 			.setDesc(
-				'Enables time rounding for tasks. For instance, 3h 42m can be shown as 4h.'
+				'Enables time rounding for tasks, so that, for example, 3h 42m is displayed as 4h.'
 			)
 			.addToggle((text) =>
 				text
@@ -70,7 +70,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
 			.setName("Time rounding interval")
 			.setDesc(
-				"The interval to which time of a task will be rounded. For instance, if interval is 30m, then 2h 5m will be shown as 2h 30m."
+				"The interval to which a task's time will be rounded. For example, if the interval is 30m, then 2h 5m will be displayed as 2h 30m."
 			)
 			.addDropdown((text) =>
 				text
