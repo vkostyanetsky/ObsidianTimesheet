@@ -1,6 +1,6 @@
 {
 	"name": "timesheet",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Timesheet generator for Obsidian.",
 	"main": "main.js",
 	"scripts": {

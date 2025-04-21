@@ -83,7 +83,7 @@ export default class TimeLogsParser {
             }
             return true;
         });
-
+        
         return taskNumber;
     }
 

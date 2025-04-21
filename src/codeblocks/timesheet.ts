@@ -21,9 +21,11 @@ export default class TimesheetCodeBlock {
             const taskNumberPatterns = this.getTaskNumberPatterns(src, plugin);
             const noteText = await plugin.app.vault.read(noteFile);
             const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
-
+            
             const tasks: Task[] = []
-            timeLogs.forEach((timeLog) => {
+            timeLogs
+                .filter(timeLog => timeLog.taskNumber !== '')
+                .forEach((timeLog) => {                
                 let task = tasks.find(task => task.number == timeLog.taskNumber)
                 if (task !== undefined) {
                     task.timeLogs.push(timeLog)
