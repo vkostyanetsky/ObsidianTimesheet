@@ -41,35 +41,30 @@ export default class TimeLogsParser {
 
     private static getTimeLog(title: string, taskNumberPatterns: string[]) {
 
-        const period = this.getPeriod(title)
+        const period = this.getPeriod(title);
 
-        let startTimestamp = 0;
-        let endTimestamp = 0;
-        let duration = 0;
+        const start = moment(period.startTime, "HH:mm");
+        let end = moment(period.endTime,   "HH:mm");
 
-        if (period.string) {
-            startTimestamp = this.getTimestamp(period.startTime);
-            endTimestamp = this.getTimestamp(period.endTime);
-            duration = endTimestamp - startTimestamp;
+        if (end.isBefore(start)) {
+            end = end.add(1, "day");
         }
 
-        const taskNumber = this.getTaskNumber(title, taskNumberPatterns)
+        const durationMs = end.diff(start);
 
-        let result = undefined;
+        const taskNumber = this.getTaskNumber(title, taskNumberPatterns);
 
-        if (duration > 0 || taskNumber != "") {
-            result = {
-                taskNumber: taskNumber,
-                interval: [startTimestamp, endTimestamp]
-                    .map((timestamp) => timestamp == 0 ? "00:00" : moment(new Date(timestamp)).format("HH:mm"))
-                    .join("-"),
+        if (durationMs > 0 || taskNumber !== "") {
+            return {
+                taskNumber,
+                interval: `${start.format("HH:mm")}-${end.format("HH:mm")}`,
                 intervalString: period.string,
-                duration: duration,
-                title: title.trim(),            
-            };            
+                duration: durationMs,
+                title: title.trim(),
+            };
         }
 
-        return result;
+        return undefined;
     }
 
     private static getTaskNumber(title: string, taskNumberPatterns: string[]) {
