@@ -149,7 +149,7 @@ export default class TimesheetCodeBlock {
         result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
         result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
         result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
-        result = result.replace(/\\([\\`*{}\[\]()#+\-.!_|>~])/g, "$1");
+        result = result.replace(/\\([\\`*{}[\]()#+\-.!_|>~])/g, "$1");
 
         return result.replace(/\s+/g, " ").trim();
     }
