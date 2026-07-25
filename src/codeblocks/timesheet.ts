@@ -54,44 +54,105 @@ export default class TimesheetCodeBlock {
                 totalDuration += task.duration;
             });
 
-            const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);            
-            const lines: string[] = []
-
-            if (plugin.settings.templateHeader) {
-                lines.push(plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation))
-            }
+            const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);
+            const header = plugin.settings.templateHeader
+                ? plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation)
+                : "";
+            const contentLines: string[] = [];
 
             tasks.forEach((task) => {
                 if (plugin.settings.templateTask) {
-                    lines.push(
+                    const taskNumber = plugin.settings.stripMarkdown
+                        ? this.stripMarkdown(task.number)
+                        : task.number;
+
+                    contentLines.push(
                         plugin.settings.templateTask
-                        .replace("{taskNumber}", task.number)
-                        .replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
+                            .replace("{taskNumber}", taskNumber)
+                            .replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
                     );
                 }
 
                 if (plugin.settings.templateTaskLog) {
                     const logs: string[] = [];
-                    task.timeLogs.forEach((log) => {                    
+                    task.timeLogs.forEach((log) => {
                         let title = log.title.replace(task.number, "");
                         title = title.replace(log.intervalString, "");
                         title = title.replace(/\(\s*\)/g, "").trim();
 
-                        if (logs.indexOf(title) == -1) {
-                            lines.push(plugin.settings.templateTaskLog.replace("{taskLogTitle}", title))
-                            logs.push(title)
+                        if (plugin.settings.stripMarkdown) {
+                            title = this.stripMarkdown(title);
                         }
-                    })                
-                }
-            })
 
-            if (plugin.settings.templateFooter) {
-                lines.push(plugin.settings.templateFooter)
+                        if (logs.indexOf(title) == -1) {
+                            contentLines.push(
+                                plugin.settings.templateTaskLog.replace("{taskLogTitle}", title)
+                            );
+                            logs.push(title);
+                        }
+                    });
+                }
+            });
+
+            const content = contentLines.join("\n");
+            let output = header;
+
+            if (content) {
+                output = output ? this.joinTemplateSections(output, content) : content;
             }
 
-            MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin)
+            if (plugin.settings.templateFooter) {
+                output = output
+                    ? this.joinTemplateSections(output, plugin.settings.templateFooter)
+                    : plugin.settings.templateFooter;
+            }
+
+            MarkdownRenderer.render(plugin.app, output, body, "", plugin);
         }
 	}
+
+    private static joinTemplateSections(left: string, right: string) {
+        const normalizedLeft = left.replace(/(?:\r?\n[ \t]*)+$/, "");
+        const normalizedRight = right.replace(/^(?:[ \t]*\r?\n)+/, "");
+
+        if (!normalizedLeft) {
+            return normalizedRight;
+        }
+
+        if (!normalizedRight) {
+            return normalizedLeft;
+        }
+
+        return `${normalizedLeft}\n${normalizedRight}`;
+    }
+
+    private static stripMarkdown(text: string) {
+        let result = text;
+
+        result = result.replace(/!\[\[([^\]]+)\]\]/g, (_match, target: string) => {
+            const separatorIndex = target.lastIndexOf("|");
+            return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
+        });
+
+        result = result.replace(/\[\[([^\]]+)\]\]/g, (_match, target: string) => {
+            const separatorIndex = target.lastIndexOf("|");
+            return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
+        });
+
+        result = result.replace(/!\[([^\]]*)\]\((?:\\.|[^)])*\)/g, "$1");
+        result = result.replace(/\[([^\]]+)\]\((?:\\.|[^)])*\)/g, "$1");
+        result = result.replace(/\[([^\]]+)\]\[[^\]]*\]/g, "$1");
+        result = result.replace(/<((?:https?:\/\/|mailto:)[^>]+)>/gi, "$1");
+        result = result.replace(/<\/?[A-Za-z][^>]*>/g, "");
+        result = result.replace(/(`{1,3})(.*?)\1/g, "$2");
+        result = result.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2");
+        result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
+        result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
+        result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
+        result = result.replace(/\\([\\`*{}\[\]()#+\-.!_|>~])/g, "$1");
+
+        return result.replace(/\s+/g, " ").trim();
+    }
 
     private static roundTaskDuration(plugin: Timesheet, duration: number) {
         let result = duration;

@@ -90,6 +90,16 @@ FBI-100 (8h)        ← task
 > ```
 > Voilà! Now Timesheet also shows me active links to JIRA instead of plain, boring issue numbers. 
 
+### How can I remove Markdown formatting from task text?
+
+Enable **Output → Remove Markdown formatting** in the plugin settings. Timesheet will remove Markdown markup from task numbers and task log titles while preserving the Markdown defined by the output templates.
+
+For example, `**standup**` becomes `standup`, `[JIRA](https://jira.example.com)` becomes `JIRA`, and `[[Note|caption]]` becomes `caption`. Inline code, italics, strikethrough, highlights, images, autolinks, and HTML tags are also converted to plain text where possible.
+
+### How are extra blank lines around the report content handled?
+
+Timesheet removes extra line breaks generated at the boundary after the **Header** template and before the **Footer** template. Exactly one line break is kept between these sections and the generated task content. Line breaks inside Header, Task, Task log, and Footer templates are not changed.
+
 ### Why is the timesheet not updating when I'm changing tasks?
 
 It is something like a known issue (take a look at the note below). Currently, the `timesheet` code block updates when you open a note. You can also trigger updating by starting to edit a code block and then leaving it.

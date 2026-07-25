@@ -35,9 +35,11 @@ var DEFAULT_SETTINGS = {
   defaultTaskNumberPatterns: "",
   roundUpTime: false,
   timeRoundingInterval: 15,
-  templateHeader: "> [!summary] Timesheet ({tasksDuration})",
-  templateTask: "> \n> {taskNumber} ({taskDuration})",
-  templateTaskLog: "> - {taskLogTitlePrettified}",
+  stripMarkdown: false,
+  templateHeader: "> [!summary] Timesheet {tasksDuration}",
+  templateDuration: "({duration})",
+  templateTask: "> \n> {taskNumber} {taskDuration}",
+  templateTaskLog: "> - {taskLogTitle}",
   templateFooter: ""
 };
 var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
@@ -49,16 +51,16 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     new import_obsidian.Setting(containerEl).setName("Default task number patterns").setDesc(
-      "You can specify task number patterns in a `timesheet` code block or simply set default ones here: it will affect all `timesheet` code blocks without patterns specified."
+      "You can specify task number patterns in a timesheet code block (one pattern per line), or set default patterns here \u2014 they will apply to all timesheet code blocks that don't have patterns specified."
     ).setClass("text-snippets-class").addTextArea(
       (text) => text.setValue(this.plugin.settings.defaultTaskNumberPatterns).onChange(async (value) => {
         this.plugin.settings.defaultTaskNumberPatterns = value;
         await this.plugin.saveSettings();
       })
     );
-    containerEl.createEl("h2", { text: "Time rounding" });
+    new import_obsidian.Setting(containerEl).setName("Time rounding").setHeading();
     new import_obsidian.Setting(containerEl).setName("Round up time").setDesc(
-      "Enables time rounding for tasks. For instance, 3h 42m can be shown as 4h."
+      "Enables time rounding for tasks, so that, for example, 3h 42m is displayed as 4h."
     ).addToggle(
       (text) => text.setValue(this.plugin.settings.roundUpTime).onChange(async (value) => {
         this.plugin.settings.roundUpTime = value;
@@ -66,7 +68,7 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
       })
     );
     new import_obsidian.Setting(containerEl).setName("Time rounding interval").setDesc(
-      "The interval to which time of a task will be rounded. For instance, if interval is 15m, then 2h 5m will be shown as 2h 30m."
+      "The interval to which a task's time will be rounded. For example, if the interval is 30m, then 2h 5m will be displayed as 2h 30m."
     ).addDropdown(
       (text) => text.addOptions({
         "15": "15m",
@@ -77,7 +79,24 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    containerEl.createEl("h2", { text: "Templates" });
+    new import_obsidian.Setting(containerEl).setName("Output").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Remove Markdown formatting").setDesc(
+      "Removes Markdown formatting from task numbers and task log titles while preserving the Markdown used by the output templates."
+    ).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.stripMarkdown).onChange(async (value) => {
+        this.plugin.settings.stripMarkdown = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Templates").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Duration").setDesc(
+      "Macros: {duration} \u2014 duration presentation (for example: 1h 30m)."
+    ).setClass("text-snippets-class").addTextArea(
+      (text) => text.setValue(this.plugin.settings.templateDuration).onChange(async (value) => {
+        this.plugin.settings.templateDuration = value;
+        await this.plugin.saveSettings();
+      })
+    );
     new import_obsidian.Setting(containerEl).setName("Header").setDesc(
       "Macros: {tasksDuration} \u2014 total duration of all tasks in a note."
     ).setClass("text-snippets-class").addTextArea(
@@ -95,7 +114,7 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
       })
     );
     new import_obsidian.Setting(containerEl).setName("Task log").setDesc(
-      "Macros: {taskLogTitlePrettified} \u2014 prettified task log title."
+      "Macros: {taskLogTitle} \u2014 prettified task log title."
     ).setClass("text-snippets-class").addTextArea(
       (text) => text.setValue(this.plugin.settings.templateTaskLog).onChange(async (value) => {
         this.plugin.settings.templateTaskLog = value;
@@ -121,30 +140,50 @@ var import_obsidian2 = require("obsidian");
 var TimeLogsParser = class {
   static timeLogs(text, taskNumberPatterns) {
     const result = [];
-    const regexp = /^- \[.\] \s*(\d{1,2}:\d{1,2})\s*-\s*(\d{1,2}:\d{1,2})(.*)$/gm;
+    const regexp = /^- \[.\] \s*(.*)$/gm;
     let match;
     while ((match = regexp.exec(text)) !== null) {
-      result.push(
-        this.getTimeLog(
-          match[1],
-          match[2],
-          match[3],
-          taskNumberPatterns
-        )
-      );
+      const timeLog = this.getTimeLog(match[1], taskNumberPatterns);
+      if (timeLog !== void 0) {
+        result.push(timeLog);
+      }
     }
     return result;
   }
-  static getTimeLog(startTime, endTime, title, taskNumberPatterns) {
-    const startTimestamp = this.getTimestamp(startTime);
-    const endTimestamp = this.getTimestamp(endTime);
+  static getPeriod(title) {
+    const regexp = /^((\d{1,2}:\d{1,2})\s*-\s*(\d{1,2}:\d{1,2})).*$/gm;
+    let match;
     const result = {
-      taskNumber: this.getTaskNumber(title, taskNumberPatterns),
-      interval: [startTimestamp, endTimestamp].map((timestamp) => (0, import_obsidian2.moment)(new Date(timestamp)).format("HH:mm")).join("-"),
-      duration: endTimestamp - startTimestamp,
-      title: title.trim()
+      "startTime": "00:00",
+      "endTime": "00:00",
+      "string": ""
     };
+    if ((match = regexp.exec(title.trim())) !== null) {
+      result.startTime = match[2];
+      result.endTime = match[3];
+      result.string = match[1];
+    }
     return result;
+  }
+  static getTimeLog(title, taskNumberPatterns) {
+    const period = this.getPeriod(title);
+    const start = (0, import_obsidian2.moment)(period.startTime, "HH:mm");
+    let end = (0, import_obsidian2.moment)(period.endTime, "HH:mm");
+    if (end.isBefore(start)) {
+      end = end.add(1, "day");
+    }
+    const durationMs = end.diff(start);
+    const taskNumber = this.getTaskNumber(title, taskNumberPatterns);
+    if (durationMs > 0 || taskNumber !== "") {
+      return {
+        taskNumber,
+        interval: `${start.format("HH:mm")}-${end.format("HH:mm")}`,
+        intervalString: period.string,
+        duration: durationMs,
+        title: title.trim()
+      };
+    }
+    return void 0;
   }
   static getTaskNumber(title, taskNumberPatterns) {
     let taskNumber = "";
@@ -172,7 +211,7 @@ var TimesheetCodeBlock = class {
       const noteText = await plugin.app.vault.read(noteFile);
       const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
       const tasks = [];
-      timeLogs.forEach((timeLog) => {
+      timeLogs.filter((timeLog) => timeLog.taskNumber !== "").forEach((timeLog) => {
         let task = tasks.find((task2) => task2.number == timeLog.taskNumber);
         if (task !== void 0) {
           task.timeLogs.push(timeLog);
@@ -186,6 +225,7 @@ var TimesheetCodeBlock = class {
           tasks.push(task);
         }
       });
+      tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
       if (plugin.settings.roundUpTime) {
         tasks.forEach((task, taskIndex) => {
           tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
@@ -195,39 +235,76 @@ var TimesheetCodeBlock = class {
       tasks.forEach(function(task) {
         totalDuration += task.duration;
       });
-      let totalDurationPresentation = this.getDurationPresentation(totalDuration);
-      if (totalDurationPresentation == "") {
-        totalDurationPresentation = "0h 0m";
-      }
-      const lines = [];
-      if (plugin.settings.templateHeader) {
-        lines.push(plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation));
-      }
+      const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);
+      const header = plugin.settings.templateHeader ? plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation) : "";
+      const contentLines = [];
       tasks.forEach((task) => {
         if (plugin.settings.templateTask) {
-          lines.push(
-            plugin.settings.templateTask.replace("{taskNumber}", task.number).replace("{taskDuration}", this.getDurationPresentation(task.duration))
+          const taskNumber = plugin.settings.stripMarkdown ? this.stripMarkdown(task.number) : task.number;
+          contentLines.push(
+            plugin.settings.templateTask.replace("{taskNumber}", taskNumber).replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
           );
         }
         if (plugin.settings.templateTaskLog) {
           const logs = [];
           task.timeLogs.forEach((log) => {
             let title = log.title.replace(task.number, "");
-            title = title.replace(/\(\s*\)/g, "");
+            title = title.replace(log.intervalString, "");
+            title = title.replace(/\(\s*\)/g, "").trim();
+            if (plugin.settings.stripMarkdown) {
+              title = this.stripMarkdown(title);
+            }
             if (logs.indexOf(title) == -1) {
-              lines.push(plugin.settings.templateTaskLog.replace("{taskLogTitlePrettified}", title));
+              contentLines.push(plugin.settings.templateTaskLog.replace("{taskLogTitle}", title));
               logs.push(title);
             }
           });
         }
       });
-      if (plugin.settings.templateFooter) {
-        lines.push(plugin.settings.templateFooter);
+      const content = contentLines.join("\n");
+      let output = header;
+      if (content) {
+        output = output ? this.joinTemplateSections(output, content) : content;
       }
-      import_obsidian3.MarkdownRenderer.render(plugin.app, lines.join("\n"), body, "", plugin);
+      if (plugin.settings.templateFooter) {
+        output = output ? this.joinTemplateSections(output, plugin.settings.templateFooter) : plugin.settings.templateFooter;
+      }
+      import_obsidian3.MarkdownRenderer.render(plugin.app, output, body, "", plugin);
     }
   }
-  static hideTaskNumber(plugin, title, taskNumber) {
+  static joinTemplateSections(left, right) {
+    const normalizedLeft = left.replace(/(?:\r?\n[ \t]*)+$/, "");
+    const normalizedRight = right.replace(/^(?:[ \t]*\r?\n)+/, "");
+    if (!normalizedLeft) {
+      return normalizedRight;
+    }
+    if (!normalizedRight) {
+      return normalizedLeft;
+    }
+    return `${normalizedLeft}\n${normalizedRight}`;
+  }
+  static stripMarkdown(text) {
+    let result = text;
+    result = result.replace(/!\[\[([^\]]+)\]\]/g, (_match, target) => {
+      const separatorIndex = target.lastIndexOf("|");
+      return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
+    });
+    result = result.replace(/\[\[([^\]]+)\]\]/g, (_match, target) => {
+      const separatorIndex = target.lastIndexOf("|");
+      return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
+    });
+    result = result.replace(/!\[([^\]]*)\]\((?:\\.|[^)])*\)/g, "$1");
+    result = result.replace(/\[([^\]]+)\]\((?:\\.|[^)])*\)/g, "$1");
+    result = result.replace(/\[([^\]]+)\]\[[^\]]*\]/g, "$1");
+    result = result.replace(/<((?:https?:\/\/|mailto:)[^>]+)>/gi, "$1");
+    result = result.replace(/<\/?[A-Za-z][^>]*>/g, "");
+    result = result.replace(/(`{1,3})(.*?)\1/g, "$2");
+    result = result.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2");
+    result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
+    result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
+    result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
+    result = result.replace(/\\([\\`*{}\[\]()#+\-.!_|>~])/g, "$1");
+    return result.replace(/\s+/g, " ").trim();
   }
   static roundTaskDuration(plugin, duration) {
     let result = duration;
@@ -235,7 +312,7 @@ var TimesheetCodeBlock = class {
     result = Math.ceil(result / interval) * interval;
     return result;
   }
-  static getDurationPresentation(duration) {
+  static getDurationPresentation(plugin, duration) {
     let minutes = duration / 1e3 / 60;
     const hours = Math.floor(minutes / 60);
     minutes -= hours * 60;
@@ -246,7 +323,11 @@ var TimesheetCodeBlock = class {
     if (minutes > 0) {
       resultItems.push(`${minutes}m`);
     }
-    return resultItems.join(" ");
+    let result = resultItems.join(" ");
+    if (result && plugin.settings.templateDuration) {
+      result = plugin.settings.templateDuration.replace("{duration}", result);
+    }
+    return result;
   }
   static getTaskNumberPatterns(codeblockText, plugin) {
     let patternsString = codeblockText.trim();
@@ -308,3 +389,5 @@ var Timesheet = class extends import_obsidian4.Plugin {
     await this.saveData(this.settings);
   }
 };
+
+/* nosourcemap */

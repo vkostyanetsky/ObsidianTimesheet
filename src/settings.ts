@@ -5,6 +5,7 @@ export interface TimesheetSettings {
     defaultTaskNumberPatterns: string;
     roundUpTime: boolean;
     timeRoundingInterval: number;
+    stripMarkdown: boolean;
     templateHeader: string;
     templateDuration: string;
     templateTask: string;
@@ -16,6 +17,7 @@ export const DEFAULT_SETTINGS: TimesheetSettings = {
     defaultTaskNumberPatterns: '',
     roundUpTime: false,
     timeRoundingInterval: 15,
+    stripMarkdown: false,
     templateHeader: '> [!summary] Timesheet {tasksDuration}',
     templateDuration: "({duration})",
     templateTask: '> \n> {taskNumber} {taskDuration}',
@@ -85,6 +87,22 @@ export class TimesheetSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
+        new Setting(containerEl).setName("Output").setHeading();
+
+        new Setting(containerEl)
+            .setName("Remove Markdown formatting")
+            .setDesc(
+                "Removes Markdown formatting from task numbers and task log titles while preserving the Markdown used by the output templates."
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.stripMarkdown)
+                    .onChange(async (value) => {
+                        this.plugin.settings.stripMarkdown = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
 
         new Setting(containerEl).setName("Templates").setHeading();
 
