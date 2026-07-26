@@ -1,4 +1,4 @@
-import { Plugin, Editor, MarkdownView } from "obsidian";
+import { Editor, MarkdownView, Plugin, TFile } from "obsidian";
 
 import {
 	TimesheetSettingTab,
@@ -6,7 +6,7 @@ import {
 	DEFAULT_SETTINGS,
 } from "./settings";
 
-import TimesheetCodeBlock from "./codeblocks/timesheet";
+import TimesheetRenderChild from "./codeblocks/timesheet-render-child";
 
 export default class Timesheet extends Plugin {
 	settings: TimesheetSettings;
@@ -38,13 +38,31 @@ export default class Timesheet extends Plugin {
 			"timesheet",
 			async (src, el, ctx) => {
 				try {
+					const file = this.app.vault.getFileByPath(ctx.sourcePath);
+
+					if (file === null) {
+						return;
+					}
+
 					const root = el.createEl("div");
 					const body = root.createEl("div");
+					const child = new TimesheetRenderChild(
+						this,
+						src,
+						body,
+						file
+					);
 
-					await TimesheetCodeBlock.render(this, src, body, ctx);
-				} catch (error) {
+					ctx.addChild(child);
+
+					await child.update(await this.getCurrentNoteText(file));
+				} catch (error: unknown) {
+					const message = error instanceof Error
+						? error.message
+						: String(error);
+
 					el.createEl("h3", {
-						text: `Failed to show timesheet: ${error.message}`,
+						text: `Failed to show timesheet: ${message}`,
 					});
 				}
 			}
@@ -63,5 +81,15 @@ export default class Timesheet extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	private async getCurrentNoteText(file: TFile): Promise<string> {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+		if (activeView?.file?.path === file.path) {
+			return activeView.editor.getValue();
+		}
+
+		return this.app.vault.cachedRead(file);
 	}
 }

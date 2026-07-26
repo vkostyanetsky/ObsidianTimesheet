@@ -1,199 +1,186 @@
-import {
-	MarkdownPostProcessorContext,
-	MarkdownRenderer,
-} from "obsidian";
-
 import Timesheet from "../main";
 import TimeLogsParser from "../parser";
 import { Task } from "src/types";
 
 export default class TimesheetCodeBlock {
-
-	public static async render(
+	public static buildOutput(
 		plugin: Timesheet,
 		src: string,
-		body: HTMLElement,
-		ctx: MarkdownPostProcessorContext
-	) {            
-        const noteFile = plugin.app.vault.getFileByPath(ctx.sourcePath)
-        
-        if (noteFile != null) {
-            const taskNumberPatterns = this.getTaskNumberPatterns(src, plugin);
-            const noteText = await plugin.app.vault.read(noteFile);
-            const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
-            
-            const tasks: Task[] = []
-            timeLogs
-                .filter(timeLog => timeLog.taskNumber !== '')
-                .forEach((timeLog) => {                
-                let task = tasks.find(task => task.number == timeLog.taskNumber)
-                if (task !== undefined) {
-                    task.timeLogs.push(timeLog)
-                    task.duration += timeLog.duration
-                } 
-                else {
-                    task = {
-                        timeLogs: [timeLog],
-                        duration: timeLog.duration,
-                        number: timeLog.taskNumber
-                    }
-                    tasks.push(task)
-                }
-            })
+		noteText: string
+	): string {
+		const taskNumberPatterns = this.getTaskNumberPatterns(src, plugin);
+		const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
 
-            tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
+		const tasks: Task[] = [];
+		timeLogs
+			.filter(timeLog => timeLog.taskNumber !== "")
+			.forEach((timeLog) => {
+				let task = tasks.find(task => task.number == timeLog.taskNumber);
+				if (task !== undefined) {
+					task.timeLogs.push(timeLog);
+					task.duration += timeLog.duration;
+				}
+				else {
+					task = {
+					timeLogs: [timeLog],
+					duration: timeLog.duration,
+					number: timeLog.taskNumber
+				};
+					tasks.push(task);
+				}
+			});
 
-            if (plugin.settings.roundUpTime) {
-                tasks.forEach((task, taskIndex) => {  
-                    tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
-                }); 
-            }
+		tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
 
-            let totalDuration = 0;
-            tasks.forEach(function(task) {
-                totalDuration += task.duration;
-            });
+		if (plugin.settings.roundUpTime) {
+			tasks.forEach((task, taskIndex) => {
+				tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
+			});
+		}
 
-            const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);
-            const header = plugin.settings.templateHeader
-                ? plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation)
-                : "";
-            const contentLines: string[] = [];
+		let totalDuration = 0;
+		tasks.forEach(function(task) {
+			totalDuration += task.duration;
+		});
 
-            tasks.forEach((task) => {
-                if (plugin.settings.templateTask) {
-                    const taskNumber = plugin.settings.stripMarkdown
-                        ? this.stripMarkdown(task.number)
-                        : task.number;
+		const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);
+		const header = plugin.settings.templateHeader
+			? plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation)
+			: "";
+		const contentLines: string[] = [];
 
-                    contentLines.push(
-                        plugin.settings.templateTask
-                            .replace("{taskNumber}", taskNumber)
-                            .replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
-                    );
-                }
+		tasks.forEach((task) => {
+			if (plugin.settings.templateTask) {
+				const taskNumber = plugin.settings.stripMarkdown
+					? this.stripMarkdown(task.number)
+					: task.number;
 
-                if (plugin.settings.templateTaskLog) {
-                    const logs: string[] = [];
-                    task.timeLogs.forEach((log) => {
-                        let title = log.title.replace(task.number, "");
-                        title = title.replace(log.intervalString, "");
-                        title = title.replace(/\(\s*\)/g, "").trim();
+				contentLines.push(
+					plugin.settings.templateTask
+						.replace("{taskNumber}", taskNumber)
+						.replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
+				);
+			}
 
-                        if (plugin.settings.stripMarkdown) {
-                            title = this.stripMarkdown(title);
-                        }
+			if (plugin.settings.templateTaskLog) {
+				const logs: string[] = [];
+				task.timeLogs.forEach((log) => {
+					let title = log.title.replace(task.number, "");
+					title = title.replace(log.intervalString, "");
+					title = title.replace(/\(\s*\)/g, "").trim();
 
-                        if (logs.indexOf(title) == -1) {
-                            contentLines.push(
-                                plugin.settings.templateTaskLog.replace("{taskLogTitle}", title)
-                            );
-                            logs.push(title);
-                        }
-                    });
-                }
-            });
+					if (plugin.settings.stripMarkdown) {
+						title = this.stripMarkdown(title);
+					}
 
-            const content = contentLines.join("\n");
-            let output = header;
+					if (logs.indexOf(title) == -1) {
+						contentLines.push(
+							plugin.settings.templateTaskLog.replace("{taskLogTitle}", title)
+						);
+						logs.push(title);
+					}
+				});
+			}
+		});
 
-            if (content) {
-                output = output ? this.joinTemplateSections(output, content) : content;
-            }
+		const content = contentLines.join("\n");
+		let output = header;
 
-            if (plugin.settings.templateFooter) {
-                output = output
-                    ? this.joinTemplateSections(output, plugin.settings.templateFooter)
-                    : plugin.settings.templateFooter;
-            }
+		if (content) {
+			output = output ? this.joinTemplateSections(output, content) : content;
+		}
 
-            MarkdownRenderer.render(plugin.app, output, body, "", plugin);
-        }
+		if (plugin.settings.templateFooter) {
+			output = output
+				? this.joinTemplateSections(output, plugin.settings.templateFooter)
+				: plugin.settings.templateFooter;
+		}
+
+		return output;
 	}
 
-    private static joinTemplateSections(left: string, right: string) {
-        const normalizedLeft = left.replace(/(?:\r?\n[ \t]*)+$/, "");
-        const normalizedRight = right.replace(/^(?:[ \t]*\r?\n)+/, "");
+	private static joinTemplateSections(left: string, right: string) {
+		const normalizedLeft = left.replace(/(?:\r?\n[ \t]*)+$/, "");
+		const normalizedRight = right.replace(/^(?:[ \t]*\r?\n)+/, "");
 
-        if (!normalizedLeft) {
-            return normalizedRight;
-        }
+		if (!normalizedLeft) {
+			return normalizedRight;
+		}
 
-        if (!normalizedRight) {
-            return normalizedLeft;
-        }
+		if (!normalizedRight) {
+			return normalizedLeft;
+		}
 
-        return `${normalizedLeft}\n${normalizedRight}`;
-    }
+		return `${normalizedLeft}\n${normalizedRight}`;
+	}
 
-    private static stripMarkdown(text: string) {
-        let result = text;
+	private static stripMarkdown(text: string) {
+		let result = text;
 
-        result = result.replace(/!\[\[([^\]]+)\]\]/g, (_match, target: string) => {
-            const separatorIndex = target.lastIndexOf("|");
-            return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
-        });
+		result = result.replace(/!\[\[([^\]]+)\]\]/g, (_match, target: string) => {
+			const separatorIndex = target.lastIndexOf("|");
+			return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
+		});
 
-        result = result.replace(/\[\[([^\]]+)\]\]/g, (_match, target: string) => {
-            const separatorIndex = target.lastIndexOf("|");
-            return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
-        });
+		result = result.replace(/\[\[([^\]]+)\]\]/g, (_match, target: string) => {
+			const separatorIndex = target.lastIndexOf("|");
+			return separatorIndex >= 0 ? target.slice(separatorIndex + 1) : target;
+		});
 
-        result = result.replace(/!\[([^\]]*)\]\((?:\\.|[^)])*\)/g, "$1");
-        result = result.replace(/\[([^\]]+)\]\((?:\\.|[^)])*\)/g, "$1");
-        result = result.replace(/\[([^\]]+)\]\[[^\]]*\]/g, "$1");
-        result = result.replace(/<((?:https?:\/\/|mailto:)[^>]+)>/gi, "$1");
-        result = result.replace(/<\/?[A-Za-z][^>]*>/g, "");
-        result = result.replace(/(`{1,3})(.*?)\1/g, "$2");
-        result = result.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2");
-        result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
-        result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
-        result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
-        result = result.replace(/\\([\\`*{}[\]()#+\-.!_|>~])/g, "$1");
+		result = result.replace(/!\[([^\]]*)\]\((?:\\.|[^)])*\)/g, "$1");
+		result = result.replace(/\[([^\]]+)\]\((?:\\.|[^)])*\)/g, "$1");
+		result = result.replace(/\[([^\]]+)\]\[[^\]]*\]/g, "$1");
+		result = result.replace(/<((?:https?:\/\/|mailto:)[^>]+)>/gi, "$1");
+		result = result.replace(/<\/?[A-Za-z][^>]*>/g, "");
+		result = result.replace(/(`{1,3})(.*?)\1/g, "$2");
+		result = result.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2");
+		result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
+		result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
+		result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
+		result = result.replace(/\\([\\`*{}[\]()#+\-.!_|>~])/g, "$1");
 
-        return result.replace(/\s+/g, " ").trim();
-    }
+		return result.replace(/\s+/g, " ").trim();
+	}
 
-    private static roundTaskDuration(plugin: Timesheet, duration: number) {
-        let result = duration;
+	private static roundTaskDuration(plugin: Timesheet, duration: number) {
+		let result = duration;
 
-        const interval = plugin.settings.timeRoundingInterval * 60 * 1000;
-        result = Math.ceil(result / interval) * interval;
+		const interval = plugin.settings.timeRoundingInterval * 60 * 1000;
+		result = Math.ceil(result / interval) * interval;
 
-        return result;
-    }
+		return result;
+	}
 
-    private static getDurationPresentation(plugin: Timesheet, duration: number) {
-        let minutes = duration / 1000 / 60;
-        const hours = Math.floor(minutes / 60);
+	private static getDurationPresentation(plugin: Timesheet, duration: number) {
+		let minutes = duration / 1000 / 60;
+		const hours = Math.floor(minutes / 60);
 
-        minutes -= hours * 60;
+		minutes -= hours * 60;
 
-        const resultItems = [];
+		const resultItems = [];
 
-        if (hours > 0) {
-            resultItems.push(`${hours}h`);
-        }
+		if (hours > 0) {
+			resultItems.push(`${hours}h`);
+		}
 
-        if (minutes > 0) {
-            resultItems.push(`${minutes}m`);
-        }
+		if (minutes > 0) {
+			resultItems.push(`${minutes}m`);
+		}
 
-        let result = resultItems.join(" ");
+		let result = resultItems.join(" ");
 
-        if (result && plugin.settings.templateDuration) {
-            result = plugin.settings.templateDuration.replace("{duration}", result)
-        }        
+		if (result && plugin.settings.templateDuration) {
+			result = plugin.settings.templateDuration.replace("{duration}", result);
+		}
 
-        return result;
-    }
+		return result;
+	}
 
-    private static getTaskNumberPatterns(codeblockText: string, plugin: Timesheet) {
-        let patternsString = codeblockText.trim();
-        if (patternsString == "") {
-            patternsString = plugin.settings.defaultTaskNumberPatterns;
-        }
-        return patternsString.split("\n").map((patternString) => patternString.trim()) 
-    }
-
+	private static getTaskNumberPatterns(codeblockText: string, plugin: Timesheet) {
+		let patternsString = codeblockText.trim();
+		if (patternsString == "") {
+			patternsString = plugin.settings.defaultTaskNumberPatterns;
+		}
+		return patternsString.split("\n").map((patternString) => patternString.trim());
+	}
 }
