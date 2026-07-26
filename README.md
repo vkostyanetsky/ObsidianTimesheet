@@ -4,6 +4,8 @@
 
 It is a plugin for [Obsidian](https://obsidian.md) designed to generate timesheets for tasks in daily notes.
 
+[README in Russian](README.ru.md)
+
 ## 🙂 How does it work?
 
 I assume you use daily notes to log the time you spend solving tasks, which are tracked in JIRA.
