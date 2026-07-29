@@ -58,8 +58,19 @@ export function createSheetType(): SheetTypeSettings {
     };
 }
 
-export function normalizeSheetTypeCode(value: string): string {
-    let code = value.trim().replace(/\s+/g, "-");
+/**
+ * Fills in properties missing from a sheet type saved by an earlier version
+ * of the plugin, so that settings written before a property was introduced
+ * don't break the plugin.
+ */
+export function normalizeSheetType(
+    sheetType: Partial<SheetTypeSettings> | null | undefined
+): SheetTypeSettings {
+    return Object.assign(createSheetType(), sheetType ?? {});
+}
+
+export function normalizeSheetTypeCode(value: string | undefined): string {
+    let code = (value ?? "").trim().replace(/\s+/g, "-");
 
     while (code.toLowerCase().startsWith(SHEET_TYPE_CODE_BLOCK_PREFIX)) {
         code = code.slice(SHEET_TYPE_CODE_BLOCK_PREFIX.length);
@@ -89,7 +100,7 @@ export function findSheetType(
  * is used: "Insert timesheet-hobby".
  */
 export function getSheetTypeCommandName(sheetType: SheetTypeSettings): string {
-    const title = sheetType.title.trim();
+    const title = (sheetType.title ?? "").trim();
 
     return title === ""
         ? `Insert ${getSheetTypeCodeBlockName(normalizeSheetTypeCode(sheetType.code))}`
@@ -292,7 +303,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
             .addText((text) =>
                 text
                     .setPlaceholder("hobby")
-                    .setValue(sheetType.code)
+                    .setValue(sheetType.code ?? "")
                     .onChange(async (value) => {
                         const code = normalizeSheetTypeCode(value);
 
@@ -313,7 +324,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
             .addText((text) =>
                 text
                     .setPlaceholder("Hobby")
-                    .setValue(sheetType.title)
+                    .setValue(sheetType.title ?? "")
                     .onChange(async (value) => {
                         sheetType.title = value;
                         await this.plugin.saveSettings();
@@ -328,7 +339,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
             .setClass("text-snippets-class")
             .addTextArea((text) =>
                 text
-                    .setValue(sheetType.defaultTaskNumberPatterns)
+                    .setValue(sheetType.defaultTaskNumberPatterns ?? "")
                     .onChange(async (value) => {
                         sheetType.defaultTaskNumberPatterns = value;
                         await this.plugin.saveSettings();
@@ -342,7 +353,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 
     private getSheetTypeHeading(sheetType: SheetTypeSettings): string {
         const code = normalizeSheetTypeCode(sheetType.code);
-        const title = sheetType.title.trim();
+        const title = (sheetType.title ?? "").trim();
 
         if (code === "") {
             return title === "" ? "New sheet type" : title;

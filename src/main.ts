@@ -6,6 +6,7 @@ import {
 	DEFAULT_SETTINGS,
 	getSheetTypeCodeBlockName,
 	getSheetTypeCommandName,
+	normalizeSheetType,
 	normalizeSheetTypeCode,
 } from "./settings";
 
@@ -147,9 +148,9 @@ export default class Timesheet extends Plugin {
 			await this.loadData()
 		);
 
-		if (!Array.isArray(this.settings.sheetTypes)) {
-			this.settings.sheetTypes = [];
-		}
+		this.settings.sheetTypes = Array.isArray(this.settings.sheetTypes)
+			? this.settings.sheetTypes.map(normalizeSheetType)
+			: [];
 	}
 
 	async saveSettings() {
