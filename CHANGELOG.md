@@ -12,6 +12,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * Each sheet type has its own **Title**, **Default task number pattern** setting, and its own set of **Templates** (Duration, Header, Task, Task log, Footer). Patterns and templates are used only when a code block of that type is rendered.
 * Added a command inserting a code block for every sheet type. It is named after the sheet type title — for example, “Insert timesheet (Hobby)” — or after the code block name if the title is empty: “Insert timesheet-hobby”.
 
+### Fixed
+
+* Migrated the ESLint setup to the flat config format required by ESLint 9+ (`eslint.config.mjs` instead of `.eslintrc` and `.eslintignore`).
+* Bumped TypeScript to 5.9 to resolve the peer dependency conflict with `@typescript-eslint` 8.
+
 ## 1.2.1 - 2026-07-29
 
 ### Fixed
