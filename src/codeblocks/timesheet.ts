@@ -1,14 +1,14 @@
-import Timesheet from "../main";
 import TimeLogsParser from "../parser";
+import { TimesheetRenderSettings } from "../settings";
 import { Task } from "src/types";
 
 export default class TimesheetCodeBlock {
 	public static buildOutput(
-		plugin: Timesheet,
+		settings: TimesheetRenderSettings,
 		src: string,
 		noteText: string
 	): string {
-		const taskNumberPatterns = this.getTaskNumberPatterns(src, plugin);
+		const taskNumberPatterns = this.getTaskNumberPatterns(src, settings);
 		const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
 
 		const tasks: Task[] = [];
@@ -32,9 +32,9 @@ export default class TimesheetCodeBlock {
 
 		tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
 
-		if (plugin.settings.roundUpTime) {
+		if (settings.roundUpTime) {
 			tasks.forEach((task, taskIndex) => {
-				tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
+				tasks[taskIndex].duration = this.roundTaskDuration(settings, task.duration);
 			});
 		}
 
@@ -43,39 +43,39 @@ export default class TimesheetCodeBlock {
 			totalDuration += task.duration;
 		});
 
-		const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);
-		const header = plugin.settings.templateHeader
-			? plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation)
+		const totalDurationPresentation = this.getDurationPresentation(settings, totalDuration);
+		const header = settings.templateHeader
+			? settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation)
 			: "";
 		const contentLines: string[] = [];
 
 		tasks.forEach((task) => {
-			if (plugin.settings.templateTask) {
-				const taskNumber = plugin.settings.stripMarkdown
+			if (settings.templateTask) {
+				const taskNumber = settings.stripMarkdown
 					? this.stripMarkdown(task.number)
 					: task.number;
 
 				contentLines.push(
-					plugin.settings.templateTask
+					settings.templateTask
 						.replace("{taskNumber}", taskNumber)
-						.replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
+						.replace("{taskDuration}", this.getDurationPresentation(settings, task.duration))
 				);
 			}
 
-			if (plugin.settings.templateTaskLog) {
+			if (settings.templateTaskLog) {
 				const logs: string[] = [];
 				task.timeLogs.forEach((log) => {
 					let title = log.title.replace(task.number, "");
 					title = title.replace(log.intervalString, "");
 					title = title.replace(/\(\s*\)/g, "").trim();
 
-					if (plugin.settings.stripMarkdown) {
+					if (settings.stripMarkdown) {
 						title = this.stripMarkdown(title);
 					}
 
 					if (logs.indexOf(title) == -1) {
 						contentLines.push(
-							plugin.settings.templateTaskLog.replace("{taskLogTitle}", title)
+							settings.templateTaskLog.replace("{taskLogTitle}", title)
 						);
 						logs.push(title);
 					}
@@ -90,10 +90,10 @@ export default class TimesheetCodeBlock {
 			output = output ? this.joinTemplateSections(output, content) : content;
 		}
 
-		if (plugin.settings.templateFooter) {
+		if (settings.templateFooter) {
 			output = output
-				? this.joinTemplateSections(output, plugin.settings.templateFooter)
-				: plugin.settings.templateFooter;
+				? this.joinTemplateSections(output, settings.templateFooter)
+				: settings.templateFooter;
 		}
 
 		return output;
@@ -142,16 +142,16 @@ export default class TimesheetCodeBlock {
 		return result.replace(/\s+/g, " ").trim();
 	}
 
-	private static roundTaskDuration(plugin: Timesheet, duration: number) {
+	private static roundTaskDuration(settings: TimesheetRenderSettings, duration: number) {
 		let result = duration;
 
-		const interval = plugin.settings.timeRoundingInterval * 60 * 1000;
+		const interval = settings.timeRoundingInterval * 60 * 1000;
 		result = Math.ceil(result / interval) * interval;
 
 		return result;
 	}
 
-	private static getDurationPresentation(plugin: Timesheet, duration: number) {
+	private static getDurationPresentation(settings: TimesheetRenderSettings, duration: number) {
 		let minutes = duration / 1000 / 60;
 		const hours = Math.floor(minutes / 60);
 
@@ -169,17 +169,17 @@ export default class TimesheetCodeBlock {
 
 		let result = resultItems.join(" ");
 
-		if (result && plugin.settings.templateDuration) {
-			result = plugin.settings.templateDuration.replace("{duration}", result);
+		if (result && settings.templateDuration) {
+			result = settings.templateDuration.replace("{duration}", result);
 		}
 
 		return result;
 	}
 
-	private static getTaskNumberPatterns(codeblockText: string, plugin: Timesheet) {
+	private static getTaskNumberPatterns(codeblockText: string, settings: TimesheetRenderSettings) {
 		let patternsString = codeblockText.trim();
 		if (patternsString == "") {
-			patternsString = plugin.settings.defaultTaskNumberPatterns;
+			patternsString = settings.defaultTaskNumberPatterns;
 		}
 		return patternsString.split("\n").map((patternString) => patternString.trim());
 	}

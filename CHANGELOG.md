@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0 - 2026-07-29
+
+### Added
+
+* Added the **Sheet types** settings section. A sheet type defines its own code block name, so besides `timesheet` you can now use blocks like `timesheet-work` and `timesheet-hobby`.
+* Each sheet type has its own **Title**, **Default task number pattern** setting, and its own set of **Templates** (Duration, Header, Task, Task log, Footer). Patterns and templates are used only when a code block of that type is rendered.
+* Added a command inserting a code block for every sheet type. It is named after the sheet type title — for example, “Insert timesheet (Hobby)” — or after the code block name if the title is empty: “Insert timesheet-hobby”.
+
+## 1.2.1 - 2026-07-29
+
+### Fixed
+
+* Project dependencies updated to the latest versions.
+
 ## 1.2.0 - 2026-07-25
 
 ### Fixed

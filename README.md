@@ -98,6 +98,32 @@ Enable **Output → Remove Markdown formatting** in the plugin settings. Timeshe
 
 For example, `**standup**` becomes `standup`, `[JIRA](https://jira.example.com)` becomes `JIRA`, and `[[Note|caption]]` becomes `caption`. Inline code, italics, strikethrough, highlights, images, autolinks, and HTML tags are also converted to plain text where possible.
 
+### Can I use several kinds of timesheets?
+
+Yes. Take a look at the “Sheet types” section in the plugin's settings. A sheet type is a separate kind of timesheet code block with its own patterns and templates.
+
+Press **Add sheet type** and fill in the **Code block type** field: an identifier without spaces, which is added to the `timesheet-` prefix. For instance, if you type `hobby`, the plugin starts rendering code blocks like this:
+
+````
+```timesheet-hobby
+```
+````
+
+A sheet type starts working as soon as **Code block type** is filled in; until then the type is ignored.
+
+Each sheet type has its own settings:
+
+* **Title** — a human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, “Insert timesheet (Hobby)”. If the title is empty, the code block name is used instead: “Insert timesheet-hobby”.
+* **Default task number pattern** — works exactly like the global setting, but applies to this sheet type only. As usual, patterns can be specified either here or right in a code block of this type.
+* **Templates** — the same set of templates as in the global “Templates” section (Duration, Header, Task, Task log, Footer). These values are used only when a code block of this sheet type is rendered.
+
+Time rounding and the **Remove Markdown formatting** setting remain global: they apply to every sheet type.
+
+The plain `timesheet` code block keeps working and uses the global settings, so you can mix it with typed blocks in the same note.
+
+> [!note]
+> Obsidian registers code block handlers once, when the plugin is loaded. A newly added sheet type starts rendering right away, but a deleted one keeps being handled until Obsidian is restarted — such a block reports that its sheet type is not defined in the settings.
+
 ### How are extra blank lines around the report content handled?
 
 Timesheet removes extra line breaks generated at the boundary after the **Header** template and before the **Footer** template. Exactly one line break is kept between these sections and the generated task content. Line breaks inside Header, Task, Task log, and Footer templates are not changed.

@@ -6,6 +6,7 @@ import {
 
 import Timesheet from "../main";
 import TimesheetCodeBlock from "./timesheet";
+import { getRenderSettings } from "../settings";
 
 export default class TimesheetRenderChild extends MarkdownRenderChild {
 	private updateTimer: number | null = null;
@@ -17,7 +18,8 @@ export default class TimesheetRenderChild extends MarkdownRenderChild {
 		private readonly plugin: Timesheet,
 		private readonly source: string,
 		private readonly body: HTMLElement,
-		private readonly file: TFile
+		private readonly file: TFile,
+		private readonly sheetTypeCode: string | null = null
 	) {
 		super(body);
 	}
@@ -60,7 +62,10 @@ export default class TimesheetRenderChild extends MarkdownRenderChild {
 				this.pendingNoteText = null;
 
 				const output = TimesheetCodeBlock.buildOutput(
-					this.plugin,
+					getRenderSettings(
+						this.plugin.settings,
+						this.sheetTypeCode
+					),
 					this.source,
 					currentNoteText
 				);
