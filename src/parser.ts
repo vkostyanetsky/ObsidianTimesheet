@@ -71,7 +71,7 @@ export default class TimeLogsParser {
         return undefined;
     }
 
-    private static getTaskNumber(title: string, taskNumberPatterns: string[]) {
+    public static getTaskNumber(title: string, taskNumberPatterns: string[]) {
         let taskNumber = ""
 
         taskNumberPatterns.every(taskNumberPattern => {

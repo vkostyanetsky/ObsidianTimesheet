@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.5.0 - 2026-07-30
+
+### Added
+
+* Added the **Output → Text before task** and **Output → Text after task** settings to every sheet type. When they are filled in, the texts are shown around task records in a note matching the task number patterns of the sheet type, both in the editor and in Reading view.
+* The texts belong to the note view only: they are not saved to the note, are not copied with a task record, and are not used in reports.
+* Both settings are empty by default, which means no texts are added. When a record matches the patterns of two or more sheet types, the texts of the first matching type are used — even when they are empty.
+
 ## 1.4.0 - 2026-07-30
 
 ### Added

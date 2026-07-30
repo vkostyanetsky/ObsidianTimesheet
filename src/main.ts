@@ -1,4 +1,5 @@
 import { Editor, MarkdownView, Plugin, TFile } from "obsidian";
+import { Extension } from "@codemirror/state";
 
 import {
 	TimesheetSettingTab,
@@ -12,6 +13,11 @@ import {
 
 import TimesheetRenderChild from "./codeblocks/timesheet-render-child";
 
+import {
+	createTaskDecorationExtension,
+	decorateTasksInReadingView,
+} from "./decorations";
+
 const DEFAULT_CODE_BLOCK = "timesheet";
 
 export default class Timesheet extends Plugin {
@@ -19,12 +25,14 @@ export default class Timesheet extends Plugin {
 
 	private registeredCodeBlocks = new Set<string>();
 	private sheetTypeCommands = new Map<string, string>();
+	private taskDecorationExtensions: Extension[] = [];
 
 	async onload() {
 		await this.loadSettings();
 
 		this.addSettingsTab();
 		this.registerCodeBlock(DEFAULT_CODE_BLOCK, null);
+		this.registerTaskDecorations();
 
 		this.addCommand({
 			id: "insert-timesheet",
@@ -139,6 +147,31 @@ export default class Timesheet extends Plugin {
 		);
 	}
 
+	/**
+	 * Turns on decorating of task records with the texts of sheet types.
+	 *
+	 * The editor extension is registered as an array, so that it can be
+	 * replaced when the settings change: an extension already loaded by the
+	 * editor is never asked for decorations again.
+	 */
+	private registerTaskDecorations() {
+		this.registerEditorExtension(this.taskDecorationExtensions);
+		this.refreshTaskDecorations();
+
+		this.registerMarkdownPostProcessor((element) => {
+			decorateTasksInReadingView(this.settings, element);
+		});
+	}
+
+	private refreshTaskDecorations() {
+		this.taskDecorationExtensions.length = 0;
+		this.taskDecorationExtensions.push(
+			createTaskDecorationExtension(() => this.settings)
+		);
+
+		this.app.workspace.updateOptions();
+	}
+
 	onunload() {}
 
 	async loadSettings() {
@@ -156,6 +189,7 @@ export default class Timesheet extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 		this.refreshSheetTypes();
+		this.refreshTaskDecorations();
 	}
 
 	private async getCurrentNoteText(file: TFile): Promise<string> {

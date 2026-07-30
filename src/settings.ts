@@ -15,6 +15,8 @@ export interface SheetTypeSettings extends TemplateSettings {
     code: string;
     title: string;
     defaultTaskNumberPatterns: string;
+    textBeforeTask: string;
+    textAfterTask: string;
 }
 
 export interface TimesheetSettings extends TemplateSettings {
@@ -53,6 +55,8 @@ export function createSheetType(): SheetTypeSettings {
         code: '',
         title: '',
         defaultTaskNumberPatterns: DEFAULT_SETTINGS.defaultTaskNumberPatterns,
+        textBeforeTask: '',
+        textAfterTask: '',
         templateHeader: DEFAULT_SETTINGS.templateHeader,
         templateDuration: DEFAULT_SETTINGS.templateDuration,
         templateTask: DEFAULT_SETTINGS.templateTask,
@@ -84,6 +88,19 @@ export function normalizeSheetTypeCode(value: string | undefined): string {
 
 export function getSheetTypeCodeBlockName(code: string): string {
     return `${SHEET_TYPE_CODE_BLOCK_PREFIX}${code}`;
+}
+
+/**
+ * Splits a multiline task number patterns setting into a list of patterns,
+ * dropping empty lines.
+ */
+export function getTaskNumberPatterns(
+    patternsString: string | undefined
+): string[] {
+    return (patternsString ?? "")
+        .split("\n")
+        .map((pattern) => pattern.trim())
+        .filter((pattern) => pattern !== "");
 }
 
 export function findSheetType(
@@ -360,6 +377,38 @@ export class TimesheetSettingTab extends PluginSettingTab {
                     .setValue(sheetType.defaultTaskNumberPatterns ?? "")
                     .onChange(async (value) => {
                         sheetType.defaultTaskNumberPatterns = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(sheetTypeEl).setName("Output").setHeading();
+
+        new Setting(sheetTypeEl)
+            .setName("Text before task")
+            .setDesc(
+                "A text shown before task records matching the patterns of this sheet type. It belongs to the note view only: the text is not saved to the note and is not used in reports."
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder("💼 ")
+                    .setValue(sheetType.textBeforeTask ?? "")
+                    .onChange(async (value) => {
+                        sheetType.textBeforeTask = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(sheetTypeEl)
+            .setName("Text after task")
+            .setDesc(
+                "Works like the setting above, but the text is shown after a task record. Both settings are empty by default, and leading and trailing spaces in them are kept."
+            )
+            .addText((text) =>
+                text
+                    .setPlaceholder(" (work)")
+                    .setValue(sheetType.textAfterTask ?? "")
+                    .onChange(async (value) => {
+                        sheetType.textAfterTask = value;
                         await this.plugin.saveSettings();
                     })
             );

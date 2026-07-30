@@ -135,14 +135,37 @@ Each sheet type has its own settings:
 
 * **Title** — a human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, “Insert timesheet (Hobby)”. If the title is empty, the code block name is used instead: “Insert timesheet-hobby”.
 * **Default task number pattern** — works exactly like the global setting, but applies to this sheet type only. As usual, patterns can be specified either here or right in a code block of this type.
+* **Output → Text before task**, **Output → Text after task** — texts shown around task records belonging to this sheet type. See below.
 * **Templates** — the same set of templates as in the global “Templates” section (Duration, Header, Task, Task log, Footer). These values are used only when a code block of this sheet type is rendered.
 
-Time rounding and the output settings (**Remove Markdown formatting**, **Warn about overlapping tasks**) remain global: they apply to every sheet type.
+Time rounding and the global output settings (**Remove Markdown formatting**, **Warn about overlapping tasks**) remain global: they apply to every sheet type.
 
 The plain `timesheet` code block keeps working and uses the global settings, so you can mix it with typed blocks in the same note.
 
 > [!note]
 > Obsidian registers code block handlers once, when the plugin is loaded. A newly added sheet type starts rendering right away, but a deleted one keeps being handled until Obsidian is restarted — such a block reports that its sheet type is not defined in the settings.
+
+### Can I tell task records of different sheet types apart?
+
+Yes. Fill in the **Output → Text before task** and **Output → Text after task** settings of a sheet type, and every task record in a note matching the task number patterns of this type gets these texts around it:
+
+```
+- [ ] 10:00-12:00 Fix a problem on the production server (FBI-1)
+```
+
+With `💼 ` set as the text before a task, the record is shown like this:
+
+```
+- [ ] 💼 10:00-12:00 Fix a problem on the production server (FBI-1)
+```
+
+The texts belong to the note view only. They are not saved to the note, they are not copied along with a task record, and reports don't know anything about them. They work both in the editor (Live Preview and Source mode) and in Reading view.
+
+Leading and trailing spaces are kept, so you decide whether a text is separated from the record or glued to it. Both settings are empty by default, which means nothing is added.
+
+Sheet types are checked in the order they are listed in the settings, and the first type whose patterns match a record wins — even when both of its texts are empty. In other words, a record never gets a text of a sheet type it doesn't belong to; reorder the types if a record is matched by more than one of them.
+
+Patterns of the plain `timesheet` code block (the global **Default task number patterns** setting) are not used here: these texts belong to a sheet type.
 
 ### How are extra blank lines around the report content handled?
 
