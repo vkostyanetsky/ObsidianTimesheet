@@ -22,6 +22,7 @@ export interface TimesheetSettings extends TemplateSettings {
     roundUpTime: boolean;
     timeRoundingInterval: number;
     stripMarkdown: boolean;
+    warnAboutOverlaps: boolean;
     sheetTypes: SheetTypeSettings[];
 }
 
@@ -30,6 +31,7 @@ export interface TimesheetRenderSettings extends TemplateSettings {
     roundUpTime: boolean;
     timeRoundingInterval: number;
     stripMarkdown: boolean;
+    warnAboutOverlaps: boolean;
 }
 
 export const DEFAULT_SETTINGS: TimesheetSettings = {
@@ -37,6 +39,7 @@ export const DEFAULT_SETTINGS: TimesheetSettings = {
     roundUpTime: false,
     timeRoundingInterval: 15,
     stripMarkdown: false,
+    warnAboutOverlaps: true,
     templateHeader: '> [!summary] Timesheet {tasksDuration}',
     templateDuration: "({duration})",
     templateTask: '> \n> {taskNumber} {taskDuration}',
@@ -121,6 +124,7 @@ export function getRenderSettings(
         roundUpTime: settings.roundUpTime,
         timeRoundingInterval: settings.timeRoundingInterval,
         stripMarkdown: settings.stripMarkdown,
+        warnAboutOverlaps: settings.warnAboutOverlaps,
     };
 
     if (sheetTypeCode === null) {
@@ -229,6 +233,20 @@ export class TimesheetSettingTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.stripMarkdown)
                     .onChange(async (value) => {
                         this.plugin.settings.stripMarkdown = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Warn about overlapping tasks")
+            .setDesc(
+                "Shows a warning above a report when task records in a note cover the same part of a day, even if the records belong to the same task."
+            )
+            .addToggle((toggle) =>
+                toggle
+                    .setValue(this.plugin.settings.warnAboutOverlaps)
+                    .onChange(async (value) => {
+                        this.plugin.settings.warnAboutOverlaps = value;
                         await this.plugin.saveSettings();
                     })
             );

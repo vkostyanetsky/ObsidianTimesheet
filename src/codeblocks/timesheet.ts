@@ -1,6 +1,10 @@
 import TimeLogsParser from "../parser";
+import TimeLogsOverlaps from "../overlaps";
 import { TimesheetRenderSettings } from "../settings";
-import { Task } from "src/types";
+import { Task, TimeLog } from "src/types";
+
+const OVERLAPS_WARNING_TITLE = "Overlapping tasks";
+const OVERLAPS_SEPARATOR = "↔";
 
 export default class TimesheetCodeBlock {
 	public static buildOutput(
@@ -9,26 +13,27 @@ export default class TimesheetCodeBlock {
 		noteText: string
 	): string {
 		const taskNumberPatterns = this.getTaskNumberPatterns(src, settings);
-		const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
+		const timeLogs = TimeLogsParser.timeLogs(
+			noteText,
+			taskNumberPatterns
+		).filter((timeLog) => timeLog.taskNumber !== "");
 
 		const tasks: Task[] = [];
-		timeLogs
-			.filter(timeLog => timeLog.taskNumber !== "")
-			.forEach((timeLog) => {
-				let task = tasks.find(task => task.number == timeLog.taskNumber);
-				if (task !== undefined) {
-					task.timeLogs.push(timeLog);
-					task.duration += timeLog.duration;
-				}
-				else {
-					task = {
+		timeLogs.forEach((timeLog) => {
+			let task = tasks.find(task => task.number == timeLog.taskNumber);
+			if (task !== undefined) {
+				task.timeLogs.push(timeLog);
+				task.duration += timeLog.duration;
+			}
+			else {
+				task = {
 					timeLogs: [timeLog],
 					duration: timeLog.duration,
 					number: timeLog.taskNumber
 				};
-					tasks.push(task);
-				}
-			});
+				tasks.push(task);
+			}
+		});
 
 		tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
 
@@ -96,7 +101,56 @@ export default class TimesheetCodeBlock {
 				: settings.templateFooter;
 		}
 
+		const warning = this.buildOverlapsWarning(settings, timeLogs);
+
+		if (warning) {
+			output = output ? `${warning}\n\n${output}` : warning;
+		}
+
 		return output;
+	}
+
+	/**
+	 * Returns a callout listing pairs of task records which share the same
+	 * part of a day, or an empty string when there are no such pairs or the
+	 * warning is turned off in the plugin settings.
+	 *
+	 * The callout is a separate block, so it is not affected by the output
+	 * templates: it must be noticeable no matter how a report is customized.
+	 */
+	private static buildOverlapsWarning(
+		settings: TimesheetRenderSettings,
+		timeLogs: TimeLog[]
+	): string {
+		if (!settings.warnAboutOverlaps) {
+			return "";
+		}
+
+		const overlaps = TimeLogsOverlaps.find(timeLogs);
+
+		if (overlaps.length === 0) {
+			return "";
+		}
+
+		const lines = [`> [!warning] ${OVERLAPS_WARNING_TITLE}`];
+
+		overlaps.forEach((overlap) => {
+			const first = this.getOverlapTitle(settings, overlap.first);
+			const second = this.getOverlapTitle(settings, overlap.second);
+
+			lines.push(`> - ${first} ${OVERLAPS_SEPARATOR} ${second}`);
+		});
+
+		return lines.join("\n");
+	}
+
+	private static getOverlapTitle(
+		settings: TimesheetRenderSettings,
+		timeLog: TimeLog
+	): string {
+		return settings.stripMarkdown
+			? this.stripMarkdown(timeLog.title)
+			: timeLog.title;
 	}
 
 	private static joinTemplateSections(left: string, right: string) {

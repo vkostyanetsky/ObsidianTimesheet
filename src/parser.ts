@@ -55,11 +55,15 @@ export default class TimeLogsParser {
         const taskNumber = this.getTaskNumber(title, taskNumberPatterns);
 
         if (durationMs > 0 || taskNumber !== "") {
+            const startTime = start.hours() * 60 + start.minutes();
+
             return {
                 taskNumber,
                 interval: `${start.format("HH:mm")}-${end.format("HH:mm")}`,
                 intervalString: period.string,
                 duration: durationMs,
+                startTime,
+                endTime: startTime + durationMs / 1000 / 60,
                 title: title.trim(),
             };
         }

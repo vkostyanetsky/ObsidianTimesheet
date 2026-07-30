@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.4.0 - 2026-07-30
+
+### Added
+
+* Added overlap detection for task records. When two records in a note cover the same part of a day — even when they belong to the same task — a warning callout listing the overlapping pairs is shown above the report.
+* Added the **Output → Warn about overlapping tasks** setting to turn the warning on and off. Like the other output settings, it is global: it applies to every kind of timesheet code block. The warning is enabled by default.
+
 ## 1.3.1 - 2026-07-29
 
 ### Fixed

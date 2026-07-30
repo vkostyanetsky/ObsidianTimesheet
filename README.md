@@ -92,6 +92,26 @@ FBI-100 (8h)        ← task
 > ```
 > Voilà! Now Timesheet also shows me active links to JIRA instead of plain, boring issue numbers. 
 
+### What if I log the same time twice?
+
+Timesheet checks whether task records in a note cover the same part of a day. If they do, a warning is shown above the report:
+
+```
+- [ ] 20:00-21:00 Do thing 1 (FBI-1)
+- [ ] 20:30-22:00 Do thing 2 (FBI-2)
+```
+
+> [!warning] Overlapping tasks
+> - 20:00-21:00 Do thing 1 (FBI-1) ↔ 20:30-22:00 Do thing 2 (FBI-2)
+
+Records are compared in pairs, so every conflict is listed with both of its records. Records of the same task are compared as well: `10:00-10:30` and `10:00-11:00` of the same issue overlap too, and the time is very likely counted twice.
+
+Only records with a task number are checked, since they are the ones a report is built from. Records without a time interval are skipped, and records merely touching each other, like `10:00-11:00` and `11:00-12:00`, are not treated as overlapping. A record crossing midnight belongs to both days, so `23:00-02:00` is reported as overlapping `00:30-01:00`.
+
+The warning is a separate callout above the report, so the output templates don't affect it.
+
+If you don't need these warnings, turn off **Output → Warn about overlapping tasks** in the plugin settings. The setting is global: it applies to every kind of timesheet code block.
+
 ### How can I remove Markdown formatting from task text?
 
 Enable **Output → Remove Markdown formatting** in the plugin settings. Timesheet will remove Markdown markup from task numbers and task log titles while preserving the Markdown defined by the output templates.
@@ -117,7 +137,7 @@ Each sheet type has its own settings:
 * **Default task number pattern** — works exactly like the global setting, but applies to this sheet type only. As usual, patterns can be specified either here or right in a code block of this type.
 * **Templates** — the same set of templates as in the global “Templates” section (Duration, Header, Task, Task log, Footer). These values are used only when a code block of this sheet type is rendered.
 
-Time rounding and the **Remove Markdown formatting** setting remain global: they apply to every sheet type.
+Time rounding and the output settings (**Remove Markdown formatting**, **Warn about overlapping tasks**) remain global: they apply to every sheet type.
 
 The plain `timesheet` code block keeps working and uses the global settings, so you can mix it with typed blocks in the same note.
 
