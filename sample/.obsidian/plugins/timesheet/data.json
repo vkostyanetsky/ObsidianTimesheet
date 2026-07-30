@@ -1,0 +1,20 @@
+{
+	"roundUpTime": false,
+	"timeRoundingInterval": 15,
+	"stripMarkdown": false,
+	"warnAboutOverlaps": true,
+	"sheetTypes": [
+		{
+			"code": "",
+			"title": "",
+			"defaultTaskNumberPatterns": "[A-Z]+-\\d+",
+			"textBeforeTask": "",
+			"textAfterTask": "",
+			"templateHeader": "> [!summary] Timesheet {tasksDuration}",
+			"templateDuration": "({duration})",
+			"templateTask": "> \n> {taskNumber} {taskDuration}",
+			"templateTaskLog": "> - {taskLogTitle}",
+			"templateFooter": ""
+		}
+	]
+}

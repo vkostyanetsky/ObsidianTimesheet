@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.6.0 - 2026-07-30
+
+### Changed
+
+* The plain `timesheet` code block is now described by a sheet type as well: a sheet type with an empty **Code block type** renders `timesheet` blocks, while a filled-in one keeps rendering `timesheet-` blocks.
+* Settings saved by an earlier version are converted on the first launch: the global patterns and templates become a sheet type with an empty code block type, and `timesheet` code blocks keep being rendered the way they were. The converted type is added after the existing sheet types, so the texts shown around task records are not affected. When a sheet type with an empty code block type is already there — an unfinished one, since such types used to be ignored — the converted values only fill in the properties it was left with.
+* A fresh install no longer creates any sheet type, and a sheet type with an empty **Code block type** is treated exactly like the others: until it is added, `timesheet` code blocks are not rendered and the **Insert timesheet** command is not there.
+* A sheet type shadowed by an earlier type with the same code block type is now fully ignored: it no longer shows its **Text before task** and **Text after task** around task records.
+* **Time rounding → Round up time**, **Time rounding → Time rounding interval**, **Output → Remove Markdown formatting** and **Output → Warn about overlapping tasks** stay global: they apply to every sheet type.
+
+### Removed
+
+* Removed the global **Default task number patterns** setting and the global **Templates** section. Their values now belong to the sheet type of the `timesheet` code block, so every kind of timesheet is set up in one and the same place.
+
 ## 1.5.0 - 2026-07-30
 
 ### Added

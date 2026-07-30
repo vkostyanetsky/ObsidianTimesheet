@@ -11,3 +11,13 @@
 .text-snippets-class {
   height: 30%;
 }
+
+.timesheet-task-affix {
+  white-space: pre;
+}
+
+.timesheet-sheet-type {
+  border-left: 2px solid var(--background-modifier-border);
+  padding-left: 1em;
+  margin-bottom: 1em;
+}

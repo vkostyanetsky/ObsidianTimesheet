@@ -19,7 +19,7 @@ export default class TimesheetRenderChild extends MarkdownRenderChild {
 		private readonly source: string,
 		private readonly body: HTMLElement,
 		private readonly file: TFile,
-		private readonly sheetTypeCode: string | null = null
+		private readonly sheetTypeCode: string
 	) {
 		super(body);
 	}

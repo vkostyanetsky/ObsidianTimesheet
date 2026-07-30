@@ -4,11 +4,11 @@ import { Extension } from "@codemirror/state";
 import {
 	TimesheetSettingTab,
 	TimesheetSettings,
-	DEFAULT_SETTINGS,
 	getSheetTypeCodeBlockName,
 	getSheetTypeCommandName,
-	normalizeSheetType,
+	hasLegacySheetTypeSettings,
 	normalizeSheetTypeCode,
+	parseSettings,
 } from "./settings";
 
 import TimesheetRenderChild from "./codeblocks/timesheet-render-child";
@@ -17,8 +17,6 @@ import {
 	createTaskDecorationExtension,
 	decorateTasksInReadingView,
 } from "./decorations";
-
-const DEFAULT_CODE_BLOCK = "timesheet";
 
 export default class Timesheet extends Plugin {
 	settings: TimesheetSettings;
@@ -31,17 +29,7 @@ export default class Timesheet extends Plugin {
 		await this.loadSettings();
 
 		this.addSettingsTab();
-		this.registerCodeBlock(DEFAULT_CODE_BLOCK, null);
 		this.registerTaskDecorations();
-
-		this.addCommand({
-			id: "insert-timesheet",
-			name: "Insert timesheet",
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection(`\`\`\`${DEFAULT_CODE_BLOCK}\n\n\`\`\``);
-			},
-		});
-
 		this.refreshSheetTypes();
 	}
 
@@ -52,6 +40,11 @@ export default class Timesheet extends Plugin {
 	/**
 	 * Registers code blocks and commands for sheet types defined in settings.
 	 *
+	 * A sheet type without a code block type is no exception: it defines the
+	 * plain "timesheet" code block and the command inserting it exactly the
+	 * way the other types define theirs, so a vault without such a type has
+	 * neither the block nor the command.
+	 *
 	 * Obsidian doesn't allow unregistering a code block processor, so the ones
 	 * belonging to deleted sheet types stay registered until the next reload;
 	 * they report the sheet type as unknown.
@@ -61,13 +54,6 @@ export default class Timesheet extends Plugin {
 
 		this.settings.sheetTypes.forEach((sheetType) => {
 			const code = normalizeSheetTypeCode(sheetType.code);
-
-			// A sheet type without a code block type is incomplete: it must not
-			// produce a "timesheet-" code block or a command.
-			if (code === "") {
-				return;
-			}
-
 			const codeBlock = getSheetTypeCodeBlockName(code);
 
 			if (commandNames.has(codeBlock)) {
@@ -104,7 +90,7 @@ export default class Timesheet extends Plugin {
 		});
 	}
 
-	private registerCodeBlock(codeBlock: string, sheetTypeCode: string | null) {
+	private registerCodeBlock(codeBlock: string, sheetTypeCode: string) {
 		if (this.registeredCodeBlocks.has(codeBlock)) {
 			return;
 		}
@@ -174,16 +160,21 @@ export default class Timesheet extends Plugin {
 
 	onunload() {}
 
+	/**
+	 * Reads the settings, converting the ones saved by a version of the plugin
+	 * that described the "timesheet" code block globally.
+	 *
+	 * Converted settings are saved right away, so that the properties which
+	 * became a sheet type are not left behind in the data file.
+	 */
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData()
-		);
+		const data: unknown = await this.loadData();
 
-		this.settings.sheetTypes = Array.isArray(this.settings.sheetTypes)
-			? this.settings.sheetTypes.map(normalizeSheetType)
-			: [];
+		this.settings = parseSettings(data);
+
+		if (hasLegacySheetTypeSettings(data)) {
+			await this.saveData(this.settings);
+		}
 	}
 
 	async saveSettings() {

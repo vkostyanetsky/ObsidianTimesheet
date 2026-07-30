@@ -31,17 +31,118 @@ var import_obsidian4 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
-var DEFAULT_SETTINGS = {
-  defaultTaskNumberPatterns: "",
-  roundUpTime: false,
-  timeRoundingInterval: 15,
-  stripMarkdown: false,
+var SHEET_TYPE_CODE_BLOCK_PREFIX = "timesheet-";
+var DEFAULT_CODE_BLOCK = "timesheet";
+var DEFAULT_TEMPLATES = {
   templateHeader: "> [!summary] Timesheet {tasksDuration}",
   templateDuration: "({duration})",
   templateTask: "> \n> {taskNumber} {taskDuration}",
   templateTaskLog: "> - {taskLogTitle}",
   templateFooter: ""
 };
+var DEFAULT_SETTINGS = {
+  roundUpTime: false,
+  timeRoundingInterval: 15,
+  stripMarkdown: false,
+  warnAboutOverlaps: true,
+  sheetTypes: []
+};
+function createSheetType() {
+  return {
+    code: "",
+    title: "",
+    defaultTaskNumberPatterns: "",
+    textBeforeTask: "",
+    textAfterTask: "",
+    ...DEFAULT_TEMPLATES
+  };
+}
+function normalizeSheetType(sheetType) {
+  return Object.assign(createSheetType(), sheetType != null ? sheetType : {});
+}
+function normalizeSheetTypeCode(value) {
+  let code = (value != null ? value : "").trim().replace(/\s+/g, "-");
+  while (code.toLowerCase().startsWith(SHEET_TYPE_CODE_BLOCK_PREFIX)) {
+    code = code.slice(SHEET_TYPE_CODE_BLOCK_PREFIX.length);
+  }
+  return code.replace(/[^A-Za-z0-9_-]/g, "");
+}
+function getSheetTypeCodeBlockName(code) {
+  return code === "" ? DEFAULT_CODE_BLOCK : `${SHEET_TYPE_CODE_BLOCK_PREFIX}${code}`;
+}
+var LEGACY_SHEET_TYPE_KEYS = [
+  "defaultTaskNumberPatterns",
+  "templateHeader",
+  "templateDuration",
+  "templateTask",
+  "templateTaskLog",
+  "templateFooter"
+];
+function hasLegacySheetTypeSettings(data) {
+  const raw = data != null ? data : {};
+  return LEGACY_SHEET_TYPE_KEYS.some((key) => typeof raw[key] === "string");
+}
+function parseSettings(data) {
+  const raw = data != null ? data : {};
+  const settings = {
+    roundUpTime: typeof raw.roundUpTime === "boolean" ? raw.roundUpTime : DEFAULT_SETTINGS.roundUpTime,
+    timeRoundingInterval: typeof raw.timeRoundingInterval === "number" ? raw.timeRoundingInterval : DEFAULT_SETTINGS.timeRoundingInterval,
+    stripMarkdown: typeof raw.stripMarkdown === "boolean" ? raw.stripMarkdown : DEFAULT_SETTINGS.stripMarkdown,
+    warnAboutOverlaps: typeof raw.warnAboutOverlaps === "boolean" ? raw.warnAboutOverlaps : DEFAULT_SETTINGS.warnAboutOverlaps,
+    sheetTypes: Array.isArray(raw.sheetTypes) ? raw.sheetTypes.map(normalizeSheetType) : []
+  };
+  if (hasLegacySheetTypeSettings(raw)) {
+    applyLegacySheetTypeSettings(settings, raw);
+  }
+  return settings;
+}
+function applyLegacySheetTypeSettings(settings, raw) {
+  const existing = findSheetType(settings, "");
+  const sheetType = existing != null ? existing : createSheetType();
+  const defaults = createSheetType();
+  LEGACY_SHEET_TYPE_KEYS.forEach((key) => {
+    const value = raw[key];
+    if (typeof value === "string" && sheetType[key] === defaults[key]) {
+      sheetType[key] = value;
+    }
+  });
+  if (existing === void 0) {
+    settings.sheetTypes.push(sheetType);
+  }
+}
+function getTaskNumberPatterns(patternsString) {
+  return (patternsString != null ? patternsString : "").split("\n").map((pattern) => pattern.trim()).filter((pattern) => pattern !== "");
+}
+function findSheetType(settings, code) {
+  return settings.sheetTypes.find(
+    (sheetType) => normalizeSheetTypeCode(sheetType.code) === code
+  );
+}
+function getSheetTypeCommandName(sheetType) {
+  var _a;
+  const title = ((_a = sheetType.title) != null ? _a : "").trim();
+  return title === "" ? `Insert ${getSheetTypeCodeBlockName(normalizeSheetTypeCode(sheetType.code))}` : `Insert timesheet (${title})`;
+}
+function getRenderSettings(settings, sheetTypeCode) {
+  const sheetType = findSheetType(settings, sheetTypeCode);
+  if (sheetType === void 0) {
+    throw new Error(
+      `Sheet type "${getSheetTypeCodeBlockName(sheetTypeCode)}" is not defined in the plugin settings.`
+    );
+  }
+  return {
+    roundUpTime: settings.roundUpTime,
+    timeRoundingInterval: settings.timeRoundingInterval,
+    stripMarkdown: settings.stripMarkdown,
+    warnAboutOverlaps: settings.warnAboutOverlaps,
+    defaultTaskNumberPatterns: sheetType.defaultTaskNumberPatterns,
+    templateHeader: sheetType.templateHeader,
+    templateDuration: sheetType.templateDuration,
+    templateTask: sheetType.templateTask,
+    templateTaskLog: sheetType.templateTaskLog,
+    templateFooter: sheetType.templateFooter
+  };
+}
 var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -50,14 +151,6 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian.Setting(containerEl).setName("Default task number patterns").setDesc(
-      "You can specify task number patterns in a timesheet code block (one pattern per line), or set default patterns here \u2014 they will apply to all timesheet code blocks that don't have patterns specified."
-    ).setClass("text-snippets-class").addTextArea(
-      (text) => text.setValue(this.plugin.settings.defaultTaskNumberPatterns).onChange(async (value) => {
-        this.plugin.settings.defaultTaskNumberPatterns = value;
-        await this.plugin.saveSettings();
-      })
-    );
     new import_obsidian.Setting(containerEl).setName("Time rounding").setHeading();
     new import_obsidian.Setting(containerEl).setName("Round up time").setDesc(
       "Enables time rounding for tasks, so that, for example, 3h 42m is displayed as 4h."
@@ -88,51 +181,164 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Templates").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Warn about overlapping tasks").setDesc(
+      "Shows a warning above a report when task records in a note cover the same part of a day, even if the records belong to the same task."
+    ).addToggle(
+      (toggle) => toggle.setValue(this.plugin.settings.warnAboutOverlaps).onChange(async (value) => {
+        this.plugin.settings.warnAboutOverlaps = value;
+        await this.plugin.saveSettings();
+      })
+    );
+    this.displaySheetTypes(containerEl);
+  }
+  displaySheetTypes(containerEl) {
+    new import_obsidian.Setting(containerEl).setName("Sheet types").setDesc(
+      `Sheet types define the timesheet code blocks you can use. Each type has its own code block name, task number patterns, and templates. A type with an empty code block type describes the plain "${DEFAULT_CODE_BLOCK}" code block.`
+    ).setHeading().addButton(
+      (button) => button.setButtonText("Add sheet type").setCta().onClick(async () => {
+        this.plugin.settings.sheetTypes.push(createSheetType());
+        await this.plugin.saveSettings();
+        this.display();
+      })
+    );
+    if (this.plugin.settings.sheetTypes.length === 0) {
+      containerEl.createEl("p", {
+        text: `No sheet types are defined yet, so no timesheet code block is rendered. Add a type with an empty code block type to get the plain "${DEFAULT_CODE_BLOCK}" one, or fill the field in to get a "${SHEET_TYPE_CODE_BLOCK_PREFIX}" one.`,
+        cls: "setting-item-description"
+      });
+      return;
+    }
+    this.plugin.settings.sheetTypes.forEach((sheetType, sheetTypeIndex) => {
+      this.displaySheetType(containerEl, sheetType, sheetTypeIndex);
+    });
+  }
+  displaySheetType(containerEl, sheetType, sheetTypeIndex) {
+    const sheetTypeEl = containerEl.createEl("div", {
+      cls: "timesheet-sheet-type"
+    });
+    new import_obsidian.Setting(sheetTypeEl).setName(this.getSheetTypeHeading(sheetType)).setHeading().addExtraButton(
+      (button) => button.setIcon("trash").setTooltip("Delete sheet type").onClick(async () => {
+        this.plugin.settings.sheetTypes.splice(sheetTypeIndex, 1);
+        await this.plugin.saveSettings();
+        this.display();
+      })
+    );
+    new import_obsidian.Setting(sheetTypeEl).setName("Code block type").setDesc(
+      `An identifier without spaces. It is added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix: for example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" code blocks. Leave the field empty to describe the plain "${DEFAULT_CODE_BLOCK}" code block.`
+    ).addText(
+      (text) => {
+        var _a;
+        return text.setPlaceholder("hobby").setValue((_a = sheetType.code) != null ? _a : "").onChange(async (value) => {
+          const code = normalizeSheetTypeCode(value);
+          if (code !== value) {
+            text.setValue(code);
+          }
+          sheetType.code = code;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    new import_obsidian.Setting(sheetTypeEl).setName("Title").setDesc(
+      'A human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, "Insert timesheet (Hobby)". If the title is empty, the code block name is used instead.'
+    ).addText(
+      (text) => {
+        var _a;
+        return text.setPlaceholder("Hobby").setValue((_a = sheetType.title) != null ? _a : "").onChange(async (value) => {
+          sheetType.title = value;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    new import_obsidian.Setting(sheetTypeEl).setName("Default task number pattern").setDesc(
+      "Patterns applied to task records of this sheet type, one pattern per line. They are used by the code blocks of this type that have no patterns of their own."
+    ).setClass("text-snippets-class").addTextArea(
+      (text) => {
+        var _a;
+        return text.setValue((_a = sheetType.defaultTaskNumberPatterns) != null ? _a : "").onChange(async (value) => {
+          sheetType.defaultTaskNumberPatterns = value;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    new import_obsidian.Setting(sheetTypeEl).setName("Output").setHeading();
+    new import_obsidian.Setting(sheetTypeEl).setName("Text before task").setDesc(
+      "A text shown before task records matching the patterns of this sheet type. It belongs to the note view only: the text is not saved to the note and is not used in reports."
+    ).addText(
+      (text) => {
+        var _a;
+        return text.setPlaceholder("\u{1F4BC} ").setValue((_a = sheetType.textBeforeTask) != null ? _a : "").onChange(async (value) => {
+          sheetType.textBeforeTask = value;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    new import_obsidian.Setting(sheetTypeEl).setName("Text after task").setDesc(
+      "Works like the setting above, but the text is shown after a task record. Both settings are empty by default, and leading and trailing spaces in them are kept."
+    ).addText(
+      (text) => {
+        var _a;
+        return text.setPlaceholder(" (work)").setValue((_a = sheetType.textAfterTask) != null ? _a : "").onChange(async (value) => {
+          sheetType.textAfterTask = value;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    new import_obsidian.Setting(sheetTypeEl).setName("Templates").setHeading();
+    this.displayTemplateSettings(sheetTypeEl, sheetType);
+  }
+  getSheetTypeHeading(sheetType) {
+    var _a;
+    const codeBlock = getSheetTypeCodeBlockName(
+      normalizeSheetTypeCode(sheetType.code)
+    );
+    const title = ((_a = sheetType.title) != null ? _a : "").trim();
+    return title === "" ? codeBlock : `${codeBlock} (${title})`;
+  }
+  displayTemplateSettings(containerEl, target) {
     new import_obsidian.Setting(containerEl).setName("Duration").setDesc(
       "Macros: {duration} \u2014 duration presentation (for example: 1h 30m)."
     ).setClass("text-snippets-class").addTextArea(
-      (text) => text.setValue(this.plugin.settings.templateDuration).onChange(async (value) => {
-        this.plugin.settings.templateDuration = value;
+      (text) => text.setValue(target.templateDuration).onChange(async (value) => {
+        target.templateDuration = value;
         await this.plugin.saveSettings();
       })
     );
     new import_obsidian.Setting(containerEl).setName("Header").setDesc(
       "Macros: {tasksDuration} \u2014 total duration of all tasks in a note."
     ).setClass("text-snippets-class").addTextArea(
-      (text) => text.setValue(this.plugin.settings.templateHeader).onChange(async (value) => {
-        this.plugin.settings.templateHeader = value;
+      (text) => text.setValue(target.templateHeader).onChange(async (value) => {
+        target.templateHeader = value;
         await this.plugin.saveSettings();
       })
     );
     new import_obsidian.Setting(containerEl).setName("Task").setDesc(
       "Macros: {taskNumber} \u2014 number of a task, {taskDuration} \u2014 total duration of a task."
     ).setClass("text-snippets-class").addTextArea(
-      (text) => text.setValue(this.plugin.settings.templateTask).onChange(async (value) => {
-        this.plugin.settings.templateTask = value;
+      (text) => text.setValue(target.templateTask).onChange(async (value) => {
+        target.templateTask = value;
         await this.plugin.saveSettings();
       })
     );
     new import_obsidian.Setting(containerEl).setName("Task log").setDesc(
       "Macros: {taskLogTitle} \u2014 prettified task log title."
     ).setClass("text-snippets-class").addTextArea(
-      (text) => text.setValue(this.plugin.settings.templateTaskLog).onChange(async (value) => {
-        this.plugin.settings.templateTaskLog = value;
+      (text) => text.setValue(target.templateTaskLog).onChange(async (value) => {
+        target.templateTaskLog = value;
         await this.plugin.saveSettings();
       })
     );
     new import_obsidian.Setting(containerEl).setName("Footer").setDesc(
       "No macros."
     ).setClass("text-snippets-class").addTextArea(
-      (text) => text.setValue(this.plugin.settings.templateFooter).onChange(async (value) => {
-        this.plugin.settings.templateFooter = value;
+      (text) => text.setValue(target.templateFooter).onChange(async (value) => {
+        target.templateFooter = value;
         await this.plugin.saveSettings();
       })
     );
   }
 };
 
-// src/codeblocks/timesheet.ts
+// src/codeblocks/timesheet-render-child.ts
 var import_obsidian3 = require("obsidian");
 
 // src/parser.ts
@@ -175,11 +381,14 @@ var TimeLogsParser = class {
     const durationMs = end.diff(start);
     const taskNumber = this.getTaskNumber(title, taskNumberPatterns);
     if (durationMs > 0 || taskNumber !== "") {
+      const startTime = start.hours() * 60 + start.minutes();
       return {
         taskNumber,
         interval: `${start.format("HH:mm")}-${end.format("HH:mm")}`,
         intervalString: period.string,
         duration: durationMs,
+        startTime,
+        endTime: startTime + durationMs / 1e3 / 60,
         title: title.trim()
       };
     }
@@ -202,75 +411,148 @@ var TimeLogsParser = class {
   }
 };
 
-// src/codeblocks/timesheet.ts
-var TimesheetCodeBlock = class {
-  static async render(plugin, src, body, ctx) {
-    const noteFile = plugin.app.vault.getFileByPath(ctx.sourcePath);
-    if (noteFile != null) {
-      const taskNumberPatterns = this.getTaskNumberPatterns(src, plugin);
-      const noteText = await plugin.app.vault.read(noteFile);
-      const timeLogs = TimeLogsParser.timeLogs(noteText, taskNumberPatterns);
-      const tasks = [];
-      timeLogs.filter((timeLog) => timeLog.taskNumber !== "").forEach((timeLog) => {
-        let task = tasks.find((task2) => task2.number == timeLog.taskNumber);
-        if (task !== void 0) {
-          task.timeLogs.push(timeLog);
-          task.duration += timeLog.duration;
-        } else {
-          task = {
-            timeLogs: [timeLog],
-            duration: timeLog.duration,
-            number: timeLog.taskNumber
-          };
-          tasks.push(task);
+// src/overlaps.ts
+var MINUTES_IN_DAY = 24 * 60;
+var TimeLogsOverlaps = class {
+  /**
+   * Returns pairs of time logs sharing the same part of a day.
+   *
+   * Logs are compared in the order they appear in a note, so the first log
+   * of a pair is always the one written earlier. Logs without a time
+   * interval are skipped: there is nothing to overlap.
+   */
+  static find(timeLogs) {
+    const logs = timeLogs.filter((timeLog) => timeLog.duration > 0);
+    const result = [];
+    logs.forEach((first, firstIndex) => {
+      logs.slice(firstIndex + 1).forEach((second) => {
+        if (this.areOverlapping(first, second)) {
+          result.push({ first, second });
         }
       });
-      tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
-      if (plugin.settings.roundUpTime) {
-        tasks.forEach((task, taskIndex) => {
-          tasks[taskIndex].duration = this.roundTaskDuration(plugin, task.duration);
+    });
+    return result;
+  }
+  /**
+   * Logs merely touching each other, like 10:00-11:00 and 11:00-12:00, are
+   * not considered overlapping.
+   *
+   * A log crossing midnight ends on the next day, so the other log is also
+   * compared with itself shifted by a day in both directions. This way
+   * 23:00-02:00 is reported as overlapping 00:30-01:00.
+   */
+  static areOverlapping(first, second) {
+    return [-MINUTES_IN_DAY, 0, MINUTES_IN_DAY].some(
+      (shift) => first.startTime < second.endTime + shift && second.startTime + shift < first.endTime
+    );
+  }
+};
+
+// src/codeblocks/timesheet.ts
+var OVERLAPS_WARNING_TITLE = "Overlapping tasks";
+var OVERLAPS_SEPARATOR = "\u2194";
+var TimesheetCodeBlock = class {
+  static buildOutput(settings, src, noteText) {
+    const taskNumberPatterns = this.getTaskNumberPatterns(src, settings);
+    const timeLogs = TimeLogsParser.timeLogs(
+      noteText,
+      taskNumberPatterns
+    ).filter((timeLog) => timeLog.taskNumber !== "");
+    const tasks = [];
+    timeLogs.forEach((timeLog) => {
+      let task = tasks.find((task2) => task2.number == timeLog.taskNumber);
+      if (task !== void 0) {
+        task.timeLogs.push(timeLog);
+        task.duration += timeLog.duration;
+      } else {
+        task = {
+          timeLogs: [timeLog],
+          duration: timeLog.duration,
+          number: timeLog.taskNumber
+        };
+        tasks.push(task);
+      }
+    });
+    tasks.sort((a, b) => a.duration > b.duration ? -1 : 1);
+    if (settings.roundUpTime) {
+      tasks.forEach((task, taskIndex) => {
+        tasks[taskIndex].duration = this.roundTaskDuration(settings, task.duration);
+      });
+    }
+    let totalDuration = 0;
+    tasks.forEach(function(task) {
+      totalDuration += task.duration;
+    });
+    const totalDurationPresentation = this.getDurationPresentation(settings, totalDuration);
+    const header = settings.templateHeader ? settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation) : "";
+    const contentLines = [];
+    tasks.forEach((task) => {
+      if (settings.templateTask) {
+        const taskNumber = settings.stripMarkdown ? this.stripMarkdown(task.number) : task.number;
+        contentLines.push(
+          settings.templateTask.replace("{taskNumber}", taskNumber).replace("{taskDuration}", this.getDurationPresentation(settings, task.duration))
+        );
+      }
+      if (settings.templateTaskLog) {
+        const logs = [];
+        task.timeLogs.forEach((log) => {
+          let title = log.title.replace(task.number, "");
+          title = title.replace(log.intervalString, "");
+          title = title.replace(/\(\s*\)/g, "").trim();
+          if (settings.stripMarkdown) {
+            title = this.stripMarkdown(title);
+          }
+          if (logs.indexOf(title) == -1) {
+            contentLines.push(
+              settings.templateTaskLog.replace("{taskLogTitle}", title)
+            );
+            logs.push(title);
+          }
         });
       }
-      let totalDuration = 0;
-      tasks.forEach(function(task) {
-        totalDuration += task.duration;
-      });
-      const totalDurationPresentation = this.getDurationPresentation(plugin, totalDuration);
-      const header = plugin.settings.templateHeader ? plugin.settings.templateHeader.replace("{tasksDuration}", totalDurationPresentation) : "";
-      const contentLines = [];
-      tasks.forEach((task) => {
-        if (plugin.settings.templateTask) {
-          const taskNumber = plugin.settings.stripMarkdown ? this.stripMarkdown(task.number) : task.number;
-          contentLines.push(
-            plugin.settings.templateTask.replace("{taskNumber}", taskNumber).replace("{taskDuration}", this.getDurationPresentation(plugin, task.duration))
-          );
-        }
-        if (plugin.settings.templateTaskLog) {
-          const logs = [];
-          task.timeLogs.forEach((log) => {
-            let title = log.title.replace(task.number, "");
-            title = title.replace(log.intervalString, "");
-            title = title.replace(/\(\s*\)/g, "").trim();
-            if (plugin.settings.stripMarkdown) {
-              title = this.stripMarkdown(title);
-            }
-            if (logs.indexOf(title) == -1) {
-              contentLines.push(plugin.settings.templateTaskLog.replace("{taskLogTitle}", title));
-              logs.push(title);
-            }
-          });
-        }
-      });
-      const content = contentLines.join("\n");
-      let output = header;
-      if (content) {
-        output = output ? this.joinTemplateSections(output, content) : content;
-      }
-      if (plugin.settings.templateFooter) {
-        output = output ? this.joinTemplateSections(output, plugin.settings.templateFooter) : plugin.settings.templateFooter;
-      }
-      import_obsidian3.MarkdownRenderer.render(plugin.app, output, body, "", plugin);
+    });
+    const content = contentLines.join("\n");
+    let output = header;
+    if (content) {
+      output = output ? this.joinTemplateSections(output, content) : content;
     }
+    if (settings.templateFooter) {
+      output = output ? this.joinTemplateSections(output, settings.templateFooter) : settings.templateFooter;
+    }
+    const warning = this.buildOverlapsWarning(settings, timeLogs);
+    if (warning) {
+      output = output ? `${warning}
+
+${output}` : warning;
+    }
+    return output;
+  }
+  /**
+   * Returns a callout listing pairs of task records which share the same
+   * part of a day, or an empty string when there are no such pairs or the
+   * warning is turned off in the plugin settings.
+   *
+   * The callout is a separate block, so it is not affected by the output
+   * templates: it must be noticeable no matter how a report is customized.
+   */
+  static buildOverlapsWarning(settings, timeLogs) {
+    if (!settings.warnAboutOverlaps) {
+      return "";
+    }
+    const overlaps = TimeLogsOverlaps.find(timeLogs);
+    if (overlaps.length === 0) {
+      return "";
+    }
+    const lines = [`> [!warning] ${OVERLAPS_WARNING_TITLE}`];
+    overlaps.forEach((overlap) => {
+      const first = this.getOverlapTitle(settings, overlap.first);
+      const second = this.getOverlapTitle(settings, overlap.second);
+      lines.push(`> - ${first} ${OVERLAPS_SEPARATOR} ${second}`);
+    });
+    return lines.join("\n");
+  }
+  static getOverlapTitle(settings, timeLog) {
+    return settings.stripMarkdown ? this.stripMarkdown(timeLog.title) : timeLog.title;
   }
   static joinTemplateSections(left, right) {
     const normalizedLeft = left.replace(/(?:\r?\n[ \t]*)+$/, "");
@@ -281,7 +563,8 @@ var TimesheetCodeBlock = class {
     if (!normalizedRight) {
       return normalizedLeft;
     }
-    return `${normalizedLeft}\n${normalizedRight}`;
+    return `${normalizedLeft}
+${normalizedRight}`;
   }
   static stripMarkdown(text) {
     let result = text;
@@ -303,16 +586,16 @@ var TimesheetCodeBlock = class {
     result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
     result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
     result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
-    result = result.replace(/\\([\\`*{}\[\]()#+\-.!_|>~])/g, "$1");
+    result = result.replace(/\\([\\`*{}[\]()#+\-.!_|>~])/g, "$1");
     return result.replace(/\s+/g, " ").trim();
   }
-  static roundTaskDuration(plugin, duration) {
+  static roundTaskDuration(settings, duration) {
     let result = duration;
-    const interval = plugin.settings.timeRoundingInterval * 60 * 1e3;
+    const interval = settings.timeRoundingInterval * 60 * 1e3;
     result = Math.ceil(result / interval) * interval;
     return result;
   }
-  static getDurationPresentation(plugin, duration) {
+  static getDurationPresentation(settings, duration) {
     let minutes = duration / 1e3 / 60;
     const hours = Math.floor(minutes / 60);
     minutes -= hours * 60;
@@ -324,70 +607,421 @@ var TimesheetCodeBlock = class {
       resultItems.push(`${minutes}m`);
     }
     let result = resultItems.join(" ");
-    if (result && plugin.settings.templateDuration) {
-      result = plugin.settings.templateDuration.replace("{duration}", result);
+    if (result && settings.templateDuration) {
+      result = settings.templateDuration.replace("{duration}", result);
     }
     return result;
   }
-  static getTaskNumberPatterns(codeblockText, plugin) {
+  static getTaskNumberPatterns(codeblockText, settings) {
     let patternsString = codeblockText.trim();
     if (patternsString == "") {
-      patternsString = plugin.settings.defaultTaskNumberPatterns;
+      patternsString = settings.defaultTaskNumberPatterns;
     }
     return patternsString.split("\n").map((patternString) => patternString.trim());
   }
 };
 
+// src/codeblocks/timesheet-render-child.ts
+var TimesheetRenderChild = class extends import_obsidian3.MarkdownRenderChild {
+  constructor(plugin, source, body, file, sheetTypeCode) {
+    super(body);
+    this.plugin = plugin;
+    this.source = source;
+    this.body = body;
+    this.file = file;
+    this.sheetTypeCode = sheetTypeCode;
+    this.updateTimer = null;
+    this.pendingNoteText = null;
+    this.rendering = false;
+    this.lastOutput = null;
+  }
+  onload() {
+    this.registerEvent(
+      this.plugin.app.workspace.on(
+        "quick-preview",
+        (file, noteText) => {
+          if (file.path !== this.file.path) {
+            return;
+          }
+          this.scheduleUpdate(noteText);
+        }
+      )
+    );
+  }
+  onunload() {
+    if (this.updateTimer !== null) {
+      window.clearTimeout(this.updateTimer);
+    }
+    this.pendingNoteText = null;
+  }
+  async update(noteText) {
+    this.pendingNoteText = noteText;
+    if (this.rendering) {
+      return;
+    }
+    this.rendering = true;
+    try {
+      while (this.pendingNoteText !== null) {
+        const currentNoteText = this.pendingNoteText;
+        this.pendingNoteText = null;
+        const output = TimesheetCodeBlock.buildOutput(
+          getRenderSettings(
+            this.plugin.settings,
+            this.sheetTypeCode
+          ),
+          this.source,
+          currentNoteText
+        );
+        if (output === this.lastOutput) {
+          continue;
+        }
+        this.body.empty();
+        await import_obsidian3.MarkdownRenderer.render(
+          this.plugin.app,
+          output,
+          this.body,
+          this.file.path,
+          this
+        );
+        this.lastOutput = output;
+      }
+    } finally {
+      this.rendering = false;
+    }
+  }
+  scheduleUpdate(noteText) {
+    if (this.updateTimer !== null) {
+      window.clearTimeout(this.updateTimer);
+    }
+    this.updateTimer = window.setTimeout(() => {
+      this.updateTimer = null;
+      void this.update(noteText).catch((error) => {
+        this.showError(error);
+      });
+    }, 250);
+  }
+  showError(error) {
+    const message = error instanceof Error ? error.message : String(error);
+    this.body.empty();
+    this.body.createEl("h3", {
+      text: `Failed to show timesheet: ${message}`
+    });
+  }
+};
+
+// src/decorations.ts
+var import_view = require("@codemirror/view");
+var import_state = require("@codemirror/state");
+var AFFIX_CLASS = "timesheet-task-affix";
+var CONTENT_CLASS = "timesheet-task-content";
+var TASK_LINE_REGEXP = /^(\s*[-*+] \[.\]\s*)(.*)$/;
+function getTaskAffixes(settings, title) {
+  var _a, _b;
+  const codeBlocks = /* @__PURE__ */ new Set();
+  for (const sheetType of settings.sheetTypes) {
+    const codeBlock = getSheetTypeCodeBlockName(
+      normalizeSheetTypeCode(sheetType.code)
+    );
+    if (codeBlocks.has(codeBlock)) {
+      continue;
+    }
+    codeBlocks.add(codeBlock);
+    const patterns = getTaskNumberPatterns(
+      sheetType.defaultTaskNumberPatterns
+    );
+    if (patterns.length === 0) {
+      continue;
+    }
+    if (TimeLogsParser.getTaskNumber(title, patterns) === "") {
+      continue;
+    }
+    return {
+      before: (_a = sheetType.textBeforeTask) != null ? _a : "",
+      after: (_b = sheetType.textAfterTask) != null ? _b : ""
+    };
+  }
+  return { before: "", after: "" };
+}
+var TaskAffixWidget = class extends import_view.WidgetType {
+  constructor(text, side) {
+    super();
+    this.text = text;
+    this.side = side;
+  }
+  eq(other) {
+    return other.text === this.text && other.side === this.side;
+  }
+  toDOM() {
+    return createSpan({
+      cls: `${AFFIX_CLASS} ${AFFIX_CLASS}-${this.side}`,
+      text: this.text
+    });
+  }
+  ignoreEvent() {
+    return false;
+  }
+};
+function createTaskDecorationExtension(getSettings) {
+  return import_view.ViewPlugin.fromClass(
+    class {
+      constructor(view) {
+        this.decorations = this.buildDecorations(view);
+      }
+      update(update) {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = this.buildDecorations(update.view);
+        }
+      }
+      buildDecorations(view) {
+        const builder = new import_state.RangeSetBuilder();
+        const settings = getSettings();
+        for (const { from, to } of view.visibleRanges) {
+          let position = from;
+          while (position <= to) {
+            const line = view.state.doc.lineAt(position);
+            const match = TASK_LINE_REGEXP.exec(line.text);
+            position = line.to + 1;
+            if (match === null || match[2].trim() === "") {
+              continue;
+            }
+            const affixes = getTaskAffixes(settings, match[2]);
+            if (affixes.before !== "") {
+              builder.add(
+                line.from + match[1].length,
+                line.from + match[1].length,
+                import_view.Decoration.widget({
+                  widget: new TaskAffixWidget(
+                    affixes.before,
+                    "before"
+                  ),
+                  side: -1
+                })
+              );
+            }
+            if (affixes.after !== "") {
+              builder.add(
+                line.to,
+                line.to,
+                import_view.Decoration.widget({
+                  widget: new TaskAffixWidget(
+                    affixes.after,
+                    "after"
+                  ),
+                  side: 1
+                })
+              );
+            }
+          }
+        }
+        return builder.finish();
+      }
+    },
+    {
+      decorations: (value) => value.decorations
+    }
+  );
+}
+function decorateTasksInReadingView(settings, element) {
+  const items = element.querySelectorAll("li.task-list-item");
+  items.forEach((item) => {
+    var _a;
+    const content = getTaskContentEl(item);
+    if (content === null) {
+      return;
+    }
+    const affixes = getTaskAffixes(settings, (_a = content.textContent) != null ? _a : "");
+    applyAffix(item, content, "before", affixes.before);
+    applyAffix(item, content, "after", affixes.after);
+  });
+}
+function applyAffix(item, content, side, text) {
+  const selector = `:scope > span.${AFFIX_CLASS}-${side}`;
+  const existing = item.querySelector(selector);
+  if (text === "") {
+    existing == null ? void 0 : existing.remove();
+    return;
+  }
+  const affix = existing != null ? existing : createSpan({ cls: `${AFFIX_CLASS} ${AFFIX_CLASS}-${side}` });
+  affix.setText(text);
+  if (existing !== null) {
+    return;
+  }
+  if (side === "before") {
+    item.insertBefore(affix, content);
+  } else {
+    content.insertAdjacentElement("afterend", affix);
+  }
+}
+function getTaskContentEl(item) {
+  const existing = item.querySelector(
+    `:scope > span.${CONTENT_CLASS}`
+  );
+  if (existing !== null) {
+    return existing;
+  }
+  const nodes = [];
+  item.childNodes.forEach((node) => {
+    if (node instanceof HTMLInputElement) {
+      return;
+    }
+    if (node instanceof HTMLElement && (node.tagName === "UL" || node.tagName === "OL")) {
+      return;
+    }
+    nodes.push(node);
+  });
+  if (nodes.length === 0) {
+    return null;
+  }
+  const content = createSpan({ cls: CONTENT_CLASS });
+  item.insertBefore(content, nodes[0]);
+  nodes.forEach((node) => content.appendChild(node));
+  return content;
+}
+
 // src/main.ts
 var Timesheet = class extends import_obsidian4.Plugin {
+  constructor() {
+    super(...arguments);
+    this.registeredCodeBlocks = /* @__PURE__ */ new Set();
+    this.sheetTypeCommands = /* @__PURE__ */ new Map();
+    this.taskDecorationExtensions = [];
+  }
   async onload() {
     await this.loadSettings();
     this.addSettingsTab();
-    this.addInsertTimesheetCommand();
-    this.addTimesheetCodeblock();
+    this.registerTaskDecorations();
+    this.refreshSheetTypes();
   }
   async addSettingsTab() {
     this.addSettingTab(new TimesheetSettingTab(this.app, this));
   }
-  async addInsertTimesheetCommand() {
-    this.addCommand({
-      id: "insert-timesheet",
-      name: "Insert timesheet",
-      editorCallback: (editor, view) => {
-        editor.replaceSelection(`\`\`\`timesheet
+  /**
+   * Registers code blocks and commands for sheet types defined in settings.
+   *
+   * A sheet type without a code block type is no exception: it defines the
+   * plain "timesheet" code block and the command inserting it exactly the
+   * way the other types define theirs, so a vault without such a type has
+   * neither the block nor the command.
+   *
+   * Obsidian doesn't allow unregistering a code block processor, so the ones
+   * belonging to deleted sheet types stay registered until the next reload;
+   * they report the sheet type as unknown.
+   */
+  refreshSheetTypes() {
+    const commandNames = /* @__PURE__ */ new Map();
+    this.settings.sheetTypes.forEach((sheetType) => {
+      const code = normalizeSheetTypeCode(sheetType.code);
+      const codeBlock = getSheetTypeCodeBlockName(code);
+      if (commandNames.has(codeBlock)) {
+        return;
+      }
+      commandNames.set(codeBlock, getSheetTypeCommandName(sheetType));
+      this.registerCodeBlock(codeBlock, code);
+    });
+    this.sheetTypeCommands.forEach((name, codeBlock) => {
+      if (commandNames.get(codeBlock) === name) {
+        return;
+      }
+      this.removeCommand(`insert-${codeBlock}`);
+      this.sheetTypeCommands.delete(codeBlock);
+    });
+    commandNames.forEach((name, codeBlock) => {
+      if (this.sheetTypeCommands.has(codeBlock)) {
+        return;
+      }
+      this.sheetTypeCommands.set(codeBlock, name);
+      this.addCommand({
+        id: `insert-${codeBlock}`,
+        name,
+        editorCallback: (editor, view) => {
+          editor.replaceSelection(`\`\`\`${codeBlock}
 
 \`\`\``);
-      }
+        }
+      });
     });
   }
-  async addTimesheetCodeblock() {
+  registerCodeBlock(codeBlock, sheetTypeCode) {
+    if (this.registeredCodeBlocks.has(codeBlock)) {
+      return;
+    }
+    this.registeredCodeBlocks.add(codeBlock);
     this.registerMarkdownCodeBlockProcessor(
-      "timesheet",
+      codeBlock,
       async (src, el, ctx) => {
         try {
+          const file = this.app.vault.getFileByPath(ctx.sourcePath);
+          if (file === null) {
+            return;
+          }
           const root = el.createEl("div");
           const body = root.createEl("div");
-          await TimesheetCodeBlock.render(this, src, body, ctx);
+          const child = new TimesheetRenderChild(
+            this,
+            src,
+            body,
+            file,
+            sheetTypeCode
+          );
+          ctx.addChild(child);
+          await child.update(await this.getCurrentNoteText(file));
         } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
           el.createEl("h3", {
-            text: `Failed to show timesheet: ${error.message}`
+            text: `Failed to show timesheet: ${message}`
           });
         }
       }
     );
   }
+  /**
+   * Turns on decorating of task records with the texts of sheet types.
+   *
+   * The editor extension is registered as an array, so that it can be
+   * replaced when the settings change: an extension already loaded by the
+   * editor is never asked for decorations again.
+   */
+  registerTaskDecorations() {
+    this.registerEditorExtension(this.taskDecorationExtensions);
+    this.refreshTaskDecorations();
+    this.registerMarkdownPostProcessor((element) => {
+      decorateTasksInReadingView(this.settings, element);
+    });
+  }
+  refreshTaskDecorations() {
+    this.taskDecorationExtensions.length = 0;
+    this.taskDecorationExtensions.push(
+      createTaskDecorationExtension(() => this.settings)
+    );
+    this.app.workspace.updateOptions();
+  }
   onunload() {
   }
+  /**
+   * Reads the settings, converting the ones saved by a version of the plugin
+   * that described the "timesheet" code block globally.
+   *
+   * Converted settings are saved right away, so that the properties which
+   * became a sheet type are not left behind in the data file.
+   */
   async loadSettings() {
-    this.settings = Object.assign(
-      {},
-      DEFAULT_SETTINGS,
-      await this.loadData()
-    );
+    const data = await this.loadData();
+    this.settings = parseSettings(data);
+    if (hasLegacySheetTypeSettings(data)) {
+      await this.saveData(this.settings);
+    }
   }
   async saveSettings() {
     await this.saveData(this.settings);
+    this.refreshSheetTypes();
+    this.refreshTaskDecorations();
+  }
+  async getCurrentNoteText(file) {
+    var _a;
+    const activeView = this.app.workspace.getActiveViewOfType(import_obsidian4.MarkdownView);
+    if (((_a = activeView == null ? void 0 : activeView.file) == null ? void 0 : _a.path) === file.path) {
+      return activeView.editor.getValue();
+    }
+    return this.app.vault.cachedRead(file);
   }
 };
-
-/* nosourcemap */

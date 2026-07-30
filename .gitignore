@@ -5,5 +5,9 @@ node_modules
 main.js
 data.json
 
+# The sample vault ships with settings, so that it works right after cloning
+!sample/.obsidian/plugins/timesheet/main.js
+!sample/.obsidian/plugins/timesheet/data.json
+
 # Sourcemaps
 *.map

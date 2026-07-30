@@ -25,7 +25,7 @@ So, a part of your daily note may look like this:
 
 There are three tasks listed, two of which are related to the same JIRA issue. The plugin is able to group and round up the time you spent on JIRA issues to show you a convenient report. You can use it while attending the next daily meeting or to get a quick calculation of spent time to log it in JIRA.
 
-Basically, the only thing you need is to insert a `timesheet` code block anywhere in the daily note and see something like this:
+Basically, the only thing you need is to add a sheet type in the plugin's settings and insert a `timesheet` code block anywhere in the daily note. In return you see something like this:
 
 ```
 FBI-1 (4h)
@@ -40,6 +40,19 @@ FBI-2 (4h)
 
 You can see more examples in the [sample vault](sample).
 
+## 🚀 Getting started
+
+The plugin renders the code blocks described by its sheet types, and it ships with none of them, so the first thing to do after installing it is to add one:
+
+1. Open **Settings → Timesheet** and press **Add sheet type**.
+2. Leave **Code block type** empty. An empty code block type means the plain `timesheet` code block; fill the field in only when you need an additional kind of timesheet, like `timesheet-hobby`.
+3. Fill in **Default task number pattern** — for example, `[A-Z]+-\d+`.
+
+That's it: the `timesheet` code blocks of your vault are rendered from now on, and the **Insert timesheet** command appears in the command palette. Everything else — templates, the texts shown around task records — is optional and described below.
+
+> [!note]
+> Updating from a version older than 1.6.0 requires nothing: the global task number patterns and templates of the previous versions are converted into a sheet type with an empty code block type on the first launch, so the code blocks you already have keep working.
+
 ## 🤔 Questions
 
 ### How the plugin finds issue numbers?
@@ -51,7 +64,7 @@ To be certain, the plugin uses patterns you can redefine. Basically, I'm speakin
 > [!note]
 > I used to think that regular expressions mechanic was a way too complex tool for this plugin, but then I was like “oh, come on, who is going to use this, after all? let's be honest, a nerd like you and you both know how regexps looks like” :)
 
-By default, there is only one pattern which is set in the plugin's settings: `[A-Z]+-\d+` (`[A-Z]+` here is "one or more capital letters", while `\d+` means "any number"). It's enough to catch almost any JIRA issue number.
+A good pattern to start with is `[A-Z]+-\d+` (`[A-Z]+` here is "one or more capital letters", while `\d+` means "any number"). It's enough to catch almost any JIRA issue number.
 
 > [!tip]
 > Though, it's probably a good idea to set specific patterns for your use case to avoid false positives. For the project I mentioned above as an example, it can be `FBI-\d+`.
@@ -67,11 +80,11 @@ CLSFD-\d+
 
 This will affect only this code block. 
 
-You can also do it globally via the plugin's settings: take a look at the “Default task number patterns” setting. The format is the same: one template per row. The setting will impact all empty `timesheet` code blocks.
+You can also do it in the plugin's settings: take a look at the “Default task number pattern” setting of a sheet type. The format is the same: one template per row. The setting will impact all empty code blocks of this sheet type.
 
 ### How can I change how the report renders?
 
-By default, the report uses [callouts](https://help.obsidian.md/Editing+and+formatting/Callouts) to show you the report. You can change this via the plugin's settings; there are few templates intended to do it in the “Templates” section.
+By default, the report uses [callouts](https://help.obsidian.md/Editing+and+formatting/Callouts) to show you the report. You can change this via the plugin's settings; there are few templates intended to do it in the “Templates” section of every sheet type.
 
 Basically, you can specify the template for header of the whole report, for a task, for a log line, and for the footer. Macros you can use in each one specified directly in the plugin's settings.
 
@@ -120,7 +133,7 @@ For example, `**standup**` becomes `standup`, `[JIRA](https://jira.example.com)`
 
 ### Can I use several kinds of timesheets?
 
-Yes. Take a look at the “Sheet types” section in the plugin's settings. A sheet type is a separate kind of timesheet code block with its own patterns and templates.
+Yes. Take a look at the “Sheet types” section in the plugin's settings. A sheet type is a kind of timesheet code block with its own patterns and templates, and every timesheet code block — the plain `timesheet` one included — is rendered by a sheet type.
 
 Press **Add sheet type** and fill in the **Code block type** field: an identifier without spaces, which is added to the `timesheet-` prefix. For instance, if you type `hobby`, the plugin starts rendering code blocks like this:
 
@@ -129,18 +142,18 @@ Press **Add sheet type** and fill in the **Code block type** field: an identifie
 ```
 ````
 
-A sheet type starts working as soon as **Code block type** is filled in; until then the type is ignored.
+Leaving **Code block type** empty is not a mistake: such a sheet type renders the plain `timesheet` code block. It has no privileges over the others — without it, `timesheet` code blocks are not rendered and there is no command inserting them, just like for any other kind of timesheet.
+
+There can be only one type per code block name, so if you define two types with the same code block type, the first of them wins and the second one is ignored entirely.
 
 Each sheet type has its own settings:
 
-* **Title** — a human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, “Insert timesheet (Hobby)”. If the title is empty, the code block name is used instead: “Insert timesheet-hobby”.
-* **Default task number pattern** — works exactly like the global setting, but applies to this sheet type only. As usual, patterns can be specified either here or right in a code block of this type.
+* **Title** — a human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, “Insert timesheet (Hobby)”. If the title is empty, the code block name is used instead: “Insert timesheet-hobby”, or simply “Insert timesheet” for a type with an empty code block type.
+* **Default task number pattern** — patterns applied to task records of this sheet type. As usual, they can be specified either here or right in a code block of this type.
 * **Output → Text before task**, **Output → Text after task** — texts shown around task records belonging to this sheet type. See below.
-* **Templates** — the same set of templates as in the global “Templates” section (Duration, Header, Task, Task log, Footer). These values are used only when a code block of this sheet type is rendered.
+* **Templates** — the set of templates the report is built from (Duration, Header, Task, Task log, Footer). These values are used only when a code block of this sheet type is rendered.
 
-Time rounding and the global output settings (**Remove Markdown formatting**, **Warn about overlapping tasks**) remain global: they apply to every sheet type.
-
-The plain `timesheet` code block keeps working and uses the global settings, so you can mix it with typed blocks in the same note.
+Time rounding (**Round up time**, **Time rounding interval**) and the global output settings (**Remove Markdown formatting**, **Warn about overlapping tasks**) are not a part of a sheet type: they apply to every sheet type at once.
 
 > [!note]
 > Obsidian registers code block handlers once, when the plugin is loaded. A newly added sheet type starts rendering right away, but a deleted one keeps being handled until Obsidian is restarted — such a block reports that its sheet type is not defined in the settings.
@@ -165,7 +178,7 @@ Leading and trailing spaces are kept, so you decide whether a text is separated 
 
 Sheet types are checked in the order they are listed in the settings, and the first type whose patterns match a record wins — even when both of its texts are empty. In other words, a record never gets a text of a sheet type it doesn't belong to; reorder the types if a record is matched by more than one of them.
 
-Patterns of the plain `timesheet` code block (the global **Default task number patterns** setting) are not used here: these texts belong to a sheet type.
+The sheet type of the plain `timesheet` code block takes part in this as well, since it is an ordinary sheet type. When settings of a version older than 1.6.0 are converted, it is added after the types you already had, so the texts you set up keep being shown for the same records as before.
 
 ### How are extra blank lines around the report content handled?
 

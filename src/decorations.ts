@@ -11,7 +11,13 @@ import {
 import { RangeSetBuilder } from "@codemirror/state";
 
 import TimeLogsParser from "./parser";
-import { getTaskNumberPatterns, TimesheetSettings } from "./settings";
+
+import {
+	getSheetTypeCodeBlockName,
+	getTaskNumberPatterns,
+	normalizeSheetTypeCode,
+	TimesheetSettings,
+} from "./settings";
 
 const AFFIX_CLASS = "timesheet-task-affix";
 const CONTENT_CLASS = "timesheet-task-content";
@@ -34,12 +40,28 @@ export interface TaskAffixes {
  * the first one whose task number patterns match the record wins — even when
  * both of its texts are empty. This way a record never gets a text of a sheet
  * type it doesn't belong to.
+ *
+ * Only the types rendering a code block are taken into account: when two of
+ * them share a code block type, the second one is dead, and a dead type has
+ * no records of its own.
  */
 export function getTaskAffixes(
 	settings: TimesheetSettings,
 	title: string
 ): TaskAffixes {
+	const codeBlocks = new Set<string>();
+
 	for (const sheetType of settings.sheetTypes) {
+		const codeBlock = getSheetTypeCodeBlockName(
+			normalizeSheetTypeCode(sheetType.code)
+		);
+
+		if (codeBlocks.has(codeBlock)) {
+			continue;
+		}
+
+		codeBlocks.add(codeBlock);
+
 		const patterns = getTaskNumberPatterns(
 			sheetType.defaultTaskNumberPatterns
 		);
