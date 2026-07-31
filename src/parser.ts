@@ -86,8 +86,4 @@ export default class TimeLogsParser {
         return taskNumber;
     }
 
-	private static getTimestamp(time: string) {
-		return Date.parse(`0001-01-01 ${time}`);
-	}
-
 }

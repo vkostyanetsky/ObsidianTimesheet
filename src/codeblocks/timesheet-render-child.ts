@@ -41,7 +41,7 @@ export default class TimesheetRenderChild extends MarkdownRenderChild {
 
 	onunload(): void {
 		if (this.updateTimer !== null) {
-			window.clearTimeout(this.updateTimer);
+			activeWindow.clearTimeout(this.updateTimer);
 		}
 
 		this.pendingNoteText = null;
@@ -93,10 +93,10 @@ export default class TimesheetRenderChild extends MarkdownRenderChild {
 
 	private scheduleUpdate(noteText: string): void {
 		if (this.updateTimer !== null) {
-			window.clearTimeout(this.updateTimer);
+			activeWindow.clearTimeout(this.updateTimer);
 		}
 
-		this.updateTimer = window.setTimeout(() => {
+		this.updateTimer = activeWindow.setTimeout(() => {
 			this.updateTimer = null;
 
 			void this.update(noteText).catch((error: unknown) => {

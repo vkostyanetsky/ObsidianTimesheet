@@ -105,7 +105,7 @@ export default class TimesheetQueryRenderChild extends MarkdownRenderChild {
 
 	onunload(): void {
 		if (this.updateTimer !== null) {
-			window.clearTimeout(this.updateTimer);
+			activeWindow.clearTimeout(this.updateTimer);
 		}
 
 		this.unsavedNoteTexts.clear();
@@ -285,10 +285,10 @@ export default class TimesheetQueryRenderChild extends MarkdownRenderChild {
 
 	private scheduleUpdate(): void {
 		if (this.updateTimer !== null) {
-			window.clearTimeout(this.updateTimer);
+			activeWindow.clearTimeout(this.updateTimer);
 		}
 
-		this.updateTimer = window.setTimeout(() => {
+		this.updateTimer = activeWindow.setTimeout(() => {
 			this.updateTimer = null;
 
 			void this.update().catch((error: unknown) => {
