@@ -3,8 +3,15 @@ import Timesheet from "./main";
 
 export const SHEET_TYPE_CODE_BLOCK_PREFIX = "timesheet-";
 
-/** The code block rendered by a sheet type with an empty code. */
+/**
+ * The ending of the name of a query code block: the one reporting on the
+ * daily notes of a date range instead of the note it belongs to.
+ */
+export const SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX = "-query";
+
+/** The code blocks rendered by a sheet type with an empty code. */
 export const DEFAULT_CODE_BLOCK = "timesheet";
+export const DEFAULT_QUERY_CODE_BLOCK = "timesheet-query";
 
 export interface TemplateSettings {
     templateHeader: string;
@@ -83,14 +90,53 @@ export function normalizeSheetType(
     return Object.assign(createSheetType(), sheetType ?? {});
 }
 
+/**
+ * Brings a code block type to the shape the plugin builds code block names
+ * from.
+ *
+ * Both the `timesheet-` prefix and the `-query` suffix are added by the
+ * plugin, so a code containing them is stripped rather than doubled: a user
+ * typing `timesheet-hobby-query` means the very same sheet type as a user
+ * typing `hobby`. For the same reason the bare `query` code is read as an
+ * empty one — otherwise it would claim the `timesheet-query` block, which
+ * belongs to the sheet type of the plain `timesheet` one.
+ */
 export function normalizeSheetTypeCode(value: string | undefined): string {
-    let code = (value ?? "").trim().replace(/\s+/g, "-");
+    // Characters a code block name cannot contain are dropped before the
+    // prefix and the suffix are looked for: a code like "quer.y" becomes
+    // "query" and has to be recognized as the reserved word it turned into.
+    let code = (value ?? "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^A-Za-z0-9_-]/g, "");
 
-    while (code.toLowerCase().startsWith(SHEET_TYPE_CODE_BLOCK_PREFIX)) {
-        code = code.slice(SHEET_TYPE_CODE_BLOCK_PREFIX.length);
+    let previous = "";
+
+    while (code !== previous) {
+        previous = code;
+
+        // A dash the code starts or ends with belongs to the prefix or to
+        // the suffix, both of which the plugin adds by itself.
+        code = code.replace(/^-+/, "").replace(/-+$/, "");
+
+        if (code.toLowerCase().startsWith(SHEET_TYPE_CODE_BLOCK_PREFIX)) {
+            code = code.slice(SHEET_TYPE_CODE_BLOCK_PREFIX.length);
+        }
+
+        if (code.toLowerCase().endsWith(SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX)) {
+            code = code.slice(
+                0,
+                code.length - SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.length
+            );
+        } else if (
+            code.toLowerCase() ===
+            SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.slice(1)
+        ) {
+            code = "";
+        }
     }
 
-    return code.replace(/[^A-Za-z0-9_-]/g, "");
+    return code;
 }
 
 /**
@@ -103,6 +149,14 @@ export function getSheetTypeCodeBlockName(code: string): string {
     return code === ""
         ? DEFAULT_CODE_BLOCK
         : `${SHEET_TYPE_CODE_BLOCK_PREFIX}${code}`;
+}
+
+/**
+ * Returns the name of the query code block a sheet type renders: the name of
+ * its usual code block with the `-query` suffix.
+ */
+export function getSheetTypeQueryCodeBlockName(code: string): string {
+    return `${getSheetTypeCodeBlockName(code)}${SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX}`;
 }
 
 /**
@@ -240,6 +294,20 @@ export function getSheetTypeCommandName(sheetType: SheetTypeSettings): string {
 }
 
 /**
+ * Returns a name for the command inserting a query code block of the sheet
+ * type: for example, "Insert timesheet query (Hobby)".
+ */
+export function getSheetTypeQueryCommandName(
+    sheetType: SheetTypeSettings
+): string {
+    const title = (sheetType.title ?? "").trim();
+
+    return title === ""
+        ? `Insert ${getSheetTypeQueryCodeBlockName(normalizeSheetTypeCode(sheetType.code))}`
+        : `Insert timesheet query (${title})`;
+}
+
+/**
  * Returns settings to render a code block with.
  *
  * Patterns and templates are taken from the sheet type the code block
@@ -357,7 +425,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Sheet types")
             .setDesc(
-                `Sheet types define the timesheet code blocks you can use. Each type has its own code block name, task number patterns, and templates. A type with an empty code block type describes the plain "${DEFAULT_CODE_BLOCK}" code block.`
+                `Sheet types define the timesheet code blocks you can use. Each type has its own code block name, task number patterns, and templates, and renders two code blocks: one reporting on the note it is written in, and a "${SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.slice(1)}" one reporting on the daily notes of a date range. A type with an empty code block type describes the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" code blocks.`
             )
             .setHeading()
             .addButton((button) =>
@@ -373,7 +441,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
 
         if (this.plugin.settings.sheetTypes.length === 0) {
             containerEl.createEl("p", {
-                text: `No sheet types are defined yet, so no timesheet code block is rendered. Add a type with an empty code block type to get the plain "${DEFAULT_CODE_BLOCK}" one, or fill the field in to get a "${SHEET_TYPE_CODE_BLOCK_PREFIX}" one.`,
+                text: `No sheet types are defined yet, so no timesheet code block is rendered. Add a type with an empty code block type to get the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" ones, or fill the field in to get a "${SHEET_TYPE_CODE_BLOCK_PREFIX}" pair.`,
                 cls: "setting-item-description",
             });
 
@@ -411,7 +479,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(sheetTypeEl)
             .setName("Code block type")
             .setDesc(
-                `An identifier without spaces. It is added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix: for example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" code blocks. Leave the field empty to describe the plain "${DEFAULT_CODE_BLOCK}" code block.`
+                `An identifier without spaces. It is added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix: for example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" and "${getSheetTypeQueryCodeBlockName("hobby")}" code blocks. Leave the field empty to describe the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" ones.`
             )
             .addText((text) =>
                 text
@@ -447,7 +515,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(sheetTypeEl)
             .setName("Default task number pattern")
             .setDesc(
-                "Patterns applied to task records of this sheet type, one pattern per line. They are used by the code blocks of this type that have no patterns of their own."
+                "Patterns applied to task records of this sheet type, one pattern per line. They are used by the code blocks of this type that have no patterns of their own, and always by its query code blocks."
             )
             .setClass("text-snippets-class")
             .addTextArea((text) =>

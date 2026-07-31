@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.7.0 - 2026-07-30
+
+### Added
+
+* Every sheet type now renders a second code block, named after the first one with the `-query` suffix — `timesheet-query`, `timesheet-hobby-query`, and so on. Such a block reports on the daily notes of a date range instead of the note it is written in.
+* A date range is described in the code block, which is written in YAML. The `period` setting names a whole range at once: `2026`, `2026-07`, `2026-07-15`, `today`, `yesterday`, `this-week`, `last-week`, `this-month`, `last-month`, `this-year`, `last-year`.
+* The `from` and `to` settings set the bounds of a range one by one. Each of them accepts a date (`2026-07-01`, `2026-07`, `2026`) or a shift from today (`today`, `yesterday`, `tomorrow`, `-7d`, `+2w`, `-1m`, `-1y`). A date without a day is stretched towards the outside of the range, and a bound left out makes the range open on that side.
+* Daily notes are taken from the folder of the **Daily notes** core plugin (**New file location**) and recognized by its **Date format**, a format with subfolders in it included.
+* A query code block with no range shows an empty report with a hint above it, and a block the plugin cannot understand lists what exactly is wrong with its settings — an unknown setting, an unreadable period, or a date that doesn't exist, like `2026-02-31`.
+* Added a command inserting a query code block for every sheet type: “Insert timesheet query (Hobby)”, or “Insert timesheet-hobby-query” when the sheet type has no title.
+* A query report is rebuilt on its own whenever a daily note changes, since the notes it is built from are not the note it belongs to.
+
+### Changed
+
+* Task number patterns of a query code block always come from the **Default task number pattern** setting of its sheet type: the block itself is busy describing a date range.
+* Overlapping task records are now looked for in every note on its own, so records of different days covering the same part of a day are not reported by a query code block.
+* A code block type ending with `-query`, as well as the bare `query` one, is now treated the way a code block type starting with `timesheet-` is: the suffix is stripped, since the plugin adds it itself. In other words, `timesheet-hobby-query` typed into **Code block type** means the same sheet type as `hobby`, and `query` means an empty code block type. Dashes a code block type starts or ends with are dropped for the same reason.
+
+### Fixed
+
+* An empty line in the **Default task number pattern** setting, or in a code block listing patterns, no longer turns into a pattern matching everything, which made the plugin ignore the task records the patterns below it were meant for.
+* A report failing to build is no longer able to stay on the screen: a report saying exactly what the previous one said used to be skipped, even when the previous one was an error message.
+
 ## 1.6.0 - 2026-07-30
 
 ### Changed

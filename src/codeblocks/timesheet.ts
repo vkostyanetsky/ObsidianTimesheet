@@ -1,22 +1,58 @@
 import TimeLogsParser from "../parser";
 import TimeLogsOverlaps from "../overlaps";
-import { TimesheetRenderSettings } from "../settings";
-import { Task, TimeLog } from "src/types";
+import { TimesheetRenderSettings, getTaskNumberPatterns } from "../settings";
+import { Task, TimeLog, TimeLogsOverlap } from "src/types";
 
 const OVERLAPS_WARNING_TITLE = "Overlapping tasks";
 const OVERLAPS_SEPARATOR = "↔";
 
 export default class TimesheetCodeBlock {
+	/** Builds a report on the note a code block belongs to. */
 	public static buildOutput(
 		settings: TimesheetRenderSettings,
 		src: string,
 		noteText: string
 	): string {
-		const taskNumberPatterns = this.getTaskNumberPatterns(src, settings);
-		const timeLogs = TimeLogsParser.timeLogs(
-			noteText,
-			taskNumberPatterns
-		).filter((timeLog) => timeLog.taskNumber !== "");
+		return this.buildReport(
+			settings,
+			this.getTaskNumberPatterns(src, settings),
+			[noteText]
+		);
+	}
+
+	/**
+	 * Builds a report on the texts of one or more notes.
+	 *
+	 * Task records are collected from every text and grouped by task number,
+	 * so it makes no difference for a report whether they come from a single
+	 * note or from a bunch of them. Overlapping records, though, are looked
+	 * for in every text on its own: records of different days cover the same
+	 * part of a day by design.
+	 */
+	public static buildReport(
+		settings: TimesheetRenderSettings,
+		taskNumberPatterns: string[],
+		noteTexts: string[]
+	): string {
+		const timeLogs: TimeLog[] = [];
+		const overlaps: TimeLogsOverlap[] = [];
+
+		noteTexts.forEach((noteText) => {
+			const noteTimeLogs = TimeLogsParser.timeLogs(
+				noteText,
+				taskNumberPatterns
+			).filter((timeLog) => timeLog.taskNumber !== "");
+
+			if (settings.warnAboutOverlaps) {
+				TimeLogsOverlaps.find(noteTimeLogs).forEach((overlap) => {
+					overlaps.push(overlap);
+				});
+			}
+
+			noteTimeLogs.forEach((timeLog) => {
+				timeLogs.push(timeLog);
+			});
+		});
 
 		const tasks: Task[] = [];
 		timeLogs.forEach((timeLog) => {
@@ -101,7 +137,7 @@ export default class TimesheetCodeBlock {
 				: settings.templateFooter;
 		}
 
-		const warning = this.buildOverlapsWarning(settings, timeLogs);
+		const warning = this.buildOverlapsWarning(settings, overlaps);
 
 		if (warning) {
 			output = output ? `${warning}\n\n${output}` : warning;
@@ -120,13 +156,11 @@ export default class TimesheetCodeBlock {
 	 */
 	private static buildOverlapsWarning(
 		settings: TimesheetRenderSettings,
-		timeLogs: TimeLog[]
+		overlaps: TimeLogsOverlap[]
 	): string {
 		if (!settings.warnAboutOverlaps) {
 			return "";
 		}
-
-		const overlaps = TimeLogsOverlaps.find(timeLogs);
 
 		if (overlaps.length === 0) {
 			return "";
@@ -231,10 +265,12 @@ export default class TimesheetCodeBlock {
 	}
 
 	private static getTaskNumberPatterns(codeblockText: string, settings: TimesheetRenderSettings) {
-		let patternsString = codeblockText.trim();
-		if (patternsString == "") {
-			patternsString = settings.defaultTaskNumberPatterns;
-		}
-		return patternsString.split("\n").map((patternString) => patternString.trim());
+		const patternsString = codeblockText.trim();
+
+		return getTaskNumberPatterns(
+			patternsString === ""
+				? settings.defaultTaskNumberPatterns
+				: patternsString
+		);
 	}
 }

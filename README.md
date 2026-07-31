@@ -50,6 +50,9 @@ The plugin renders the code blocks described by its sheet types, and it ships wi
 
 That's it: the `timesheet` code blocks of your vault are rendered from now on, and the **Insert timesheet** command appears in the command palette. Everything else — templates, the texts shown around task records — is optional and described below.
 
+> [!tip]
+> Along with `timesheet`, you get a `timesheet-query` code block reporting on a date range rather than on a single note. See [Can I build a report for several days at once?](#can-i-build-a-report-for-several-days-at-once) below.
+
 > [!note]
 > Updating from a version older than 1.6.0 requires nothing: the global task number patterns and templates of the previous versions are converted into a sheet type with an empty code block type on the first launch, so the code blocks you already have keep working.
 
@@ -131,6 +134,66 @@ Enable **Output → Remove Markdown formatting** in the plugin settings. Timeshe
 
 For example, `**standup**` becomes `standup`, `[JIRA](https://jira.example.com)` becomes `JIRA`, and `[[Note|caption]]` becomes `caption`. Inline code, italics, strikethrough, highlights, images, autolinks, and HTML tags are also converted to plain text where possible.
 
+### Can I build a report for several days at once?
+
+Yes. Besides the `timesheet` code block, which reports on the note it is written in, every sheet type renders a code block named after it with the `-query` suffix. Such a block reports on the daily notes of a date range:
+
+````
+```timesheet-query
+period: 2026-07
+```
+````
+
+The range is the only thing you set, since the rest is already known: a query code block belongs to a sheet type, so it uses its task number patterns and its templates. In other words, `timesheet-hobby-query` reports exactly what `timesheet-hobby` would, but for a bunch of days instead of one.
+
+The block is written in YAML, the language note properties are written in, and it understands three settings.
+
+**`period`** names a whole range at once:
+
+| Value | Range |
+| --- | --- |
+| `2026` | The whole year |
+| `2026-07` | The whole month |
+| `2026-07-15` | A single day |
+| `today`, `yesterday`, `tomorrow` | A single day |
+| `-7d`, `+2w`, `-1m`, `-1y` | The single day a shift from today points at |
+| `this-week`, `last-week` | The whole week |
+| `this-month`, `last-month` | The whole month |
+| `this-year`, `last-year` | The whole year |
+
+A week starts on the day it starts on in your Obsidian language, so `this-week` means Monday to Sunday for some of us and Sunday to Saturday for the others.
+
+**`from`** and **`to`** set the bounds of a range one by one:
+
+````
+```timesheet-query
+from: 2026-07-01
+to: 2026-07-31
+```
+````
+
+Every bound accepts a date — `2026-07-01`, `2026-07`, or `2026` — as well as a shift from today: `today`, `yesterday`, `tomorrow`, or an offset like `-7d`, `+2w`, `-1m`, `-1y`. A date without a day is stretched towards the outside of the range, so `from: 2026-07` starts on the 1st of July while `to: 2026-07` ends on the 31st.
+
+Naming a period and setting the bounds are two ways of saying the same thing, so `period` cannot be used together with `from` and `to`: a block trying to do both says so instead of guessing which of them you meant.
+
+A bound you leave out makes the range open on that side, which is handy for a report on everything logged since a certain day:
+
+````
+```timesheet-query
+from: -7d
+```
+````
+
+Both bounds left out is not an error either: such a block shows an empty report with a hint above it, so an empty block tells you what to type into it. A mistake is reported the same way, in place of the report: a block naming a setting the plugin doesn't know, a period it cannot read, or a date that doesn't exist — like `2026-02-31` — says so instead of quietly reporting on the wrong days.
+
+Daily notes are taken from the folder of the **Daily notes** core plugin — the **New file location** setting — and are recognized by its **Date format**, so the plugin reports on exactly the notes the core plugin creates. A format with subfolders in it, like `YYYY/MM/YYYY-MM-DD`, works as well; notes whose names are not dates are skipped.
+
+> [!note]
+> Task records are grouped by task number no matter which day they come from, so a report on a month looks exactly like a report on a day. Records repeating word for word are listed once, which is what makes a monthly report readable: a daily standup is a single line in it rather than twenty identical ones.
+
+> [!note]
+> Overlapping records are looked for in every note on its own: `10:00-11:00` of Monday and `10:00-11:00` of Tuesday are two different hours, not a mistake.
+
 ### Can I use several kinds of timesheets?
 
 Yes. Take a look at the “Sheet types” section in the plugin's settings. A sheet type is a kind of timesheet code block with its own patterns and templates, and every timesheet code block — the plain `timesheet` one included — is rendered by a sheet type.
@@ -140,16 +203,24 @@ Press **Add sheet type** and fill in the **Code block type** field: an identifie
 ````
 ```timesheet-hobby
 ```
+
+```timesheet-hobby-query
+period: last-month
+```
 ````
 
-Leaving **Code block type** empty is not a mistake: such a sheet type renders the plain `timesheet` code block. It has no privileges over the others — without it, `timesheet` code blocks are not rendered and there is no command inserting them, just like for any other kind of timesheet.
+Every sheet type renders a pair of code blocks: the plain one, reporting on the note it is written in, and the `-query` one, reporting on the daily notes of a date range.
+
+Leaving **Code block type** empty is not a mistake: such a sheet type renders the plain `timesheet` and `timesheet-query` code blocks. It has no privileges over the others — without it, these blocks are not rendered and there are no commands inserting them, just like for any other kind of timesheet.
+
+Since the plugin adds the `timesheet-` prefix and the `-query` suffix itself, a code block type containing them is stripped rather than doubled: typing `timesheet-hobby-query` gives you the very same sheet type as typing `hobby`. The bare `query` is stripped as well, so it means an empty code block type: otherwise it would claim the `timesheet-query` block, which belongs to the sheet type of the plain `timesheet` one.
 
 There can be only one type per code block name, so if you define two types with the same code block type, the first of them wins and the second one is ignored entirely.
 
 Each sheet type has its own settings:
 
-* **Title** — a human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, “Insert timesheet (Hobby)”. If the title is empty, the code block name is used instead: “Insert timesheet-hobby”, or simply “Insert timesheet” for a type with an empty code block type.
-* **Default task number pattern** — patterns applied to task records of this sheet type. As usual, they can be specified either here or right in a code block of this type.
+* **Title** — a human-friendly name of the sheet type. It is shown in brackets after the names of the commands inserting the code blocks of this type: for example, “Insert timesheet (Hobby)” and “Insert timesheet query (Hobby)”. If the title is empty, the code block names are used instead: “Insert timesheet-hobby” and “Insert timesheet-hobby-query”.
+* **Default task number pattern** — patterns applied to task records of this sheet type. As usual, they can be specified either here or right in a code block of this type; a query code block, which is busy describing a date range, always uses the patterns from here.
 * **Output → Text before task**, **Output → Text after task** — texts shown around task records belonging to this sheet type. See below.
 * **Templates** — the set of templates the report is built from (Duration, Header, Task, Task log, Footer). These values are used only when a code block of this sheet type is rendered.
 

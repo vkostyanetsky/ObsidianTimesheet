@@ -108,6 +108,10 @@ export default class TimesheetRenderChild extends MarkdownRenderChild {
 	private showError(error: unknown): void {
 		const message = error instanceof Error ? error.message : String(error);
 
+		// The report is gone from the view, so the next one has to be
+		// rendered even when it says exactly what the previous one said.
+		this.lastOutput = null;
+
 		this.body.empty();
 		this.body.createEl("h3", {
 			text: `Failed to show timesheet: ${message}`,
