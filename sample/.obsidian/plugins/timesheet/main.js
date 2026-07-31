@@ -27,12 +27,14 @@ __export(main_exports, {
   default: () => Timesheet
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
 var SHEET_TYPE_CODE_BLOCK_PREFIX = "timesheet-";
+var SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX = "-query";
 var DEFAULT_CODE_BLOCK = "timesheet";
+var DEFAULT_QUERY_CODE_BLOCK = "timesheet-query";
 var DEFAULT_TEMPLATES = {
   templateHeader: "> [!summary] Timesheet {tasksDuration}",
   templateDuration: "({duration})",
@@ -61,14 +63,30 @@ function normalizeSheetType(sheetType) {
   return Object.assign(createSheetType(), sheetType != null ? sheetType : {});
 }
 function normalizeSheetTypeCode(value) {
-  let code = (value != null ? value : "").trim().replace(/\s+/g, "-");
-  while (code.toLowerCase().startsWith(SHEET_TYPE_CODE_BLOCK_PREFIX)) {
-    code = code.slice(SHEET_TYPE_CODE_BLOCK_PREFIX.length);
+  let code = (value != null ? value : "").trim().replace(/\s+/g, "-").replace(/[^A-Za-z0-9_-]/g, "");
+  let previous = "";
+  while (code !== previous) {
+    previous = code;
+    code = code.replace(/^-+/, "").replace(/-+$/, "");
+    if (code.toLowerCase().startsWith(SHEET_TYPE_CODE_BLOCK_PREFIX)) {
+      code = code.slice(SHEET_TYPE_CODE_BLOCK_PREFIX.length);
+    }
+    if (code.toLowerCase().endsWith(SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX)) {
+      code = code.slice(
+        0,
+        code.length - SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.length
+      );
+    } else if (code.toLowerCase() === SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.slice(1)) {
+      code = "";
+    }
   }
-  return code.replace(/[^A-Za-z0-9_-]/g, "");
+  return code;
 }
 function getSheetTypeCodeBlockName(code) {
   return code === "" ? DEFAULT_CODE_BLOCK : `${SHEET_TYPE_CODE_BLOCK_PREFIX}${code}`;
+}
+function getSheetTypeQueryCodeBlockName(code) {
+  return `${getSheetTypeCodeBlockName(code)}${SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX}`;
 }
 var LEGACY_SHEET_TYPE_KEYS = [
   "defaultTaskNumberPatterns",
@@ -122,6 +140,11 @@ function getSheetTypeCommandName(sheetType) {
   var _a;
   const title = ((_a = sheetType.title) != null ? _a : "").trim();
   return title === "" ? `Insert ${getSheetTypeCodeBlockName(normalizeSheetTypeCode(sheetType.code))}` : `Insert timesheet (${title})`;
+}
+function getSheetTypeQueryCommandName(sheetType) {
+  var _a;
+  const title = ((_a = sheetType.title) != null ? _a : "").trim();
+  return title === "" ? `Insert ${getSheetTypeQueryCodeBlockName(normalizeSheetTypeCode(sheetType.code))}` : `Insert timesheet query (${title})`;
 }
 function getRenderSettings(settings, sheetTypeCode) {
   const sheetType = findSheetType(settings, sheetTypeCode);
@@ -193,7 +216,7 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
   }
   displaySheetTypes(containerEl) {
     new import_obsidian.Setting(containerEl).setName("Sheet types").setDesc(
-      `Sheet types define the timesheet code blocks you can use. Each type has its own code block name, task number patterns, and templates. A type with an empty code block type describes the plain "${DEFAULT_CODE_BLOCK}" code block.`
+      `Sheet types define the timesheet code blocks you can use. Each type has its own code block name, task number patterns, and templates, and renders two code blocks: one reporting on the note it is written in, and a "${SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.slice(1)}" one reporting on the daily notes of a date range. A type with an empty code block type describes the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" code blocks.`
     ).setHeading().addButton(
       (button) => button.setButtonText("Add sheet type").setCta().onClick(async () => {
         this.plugin.settings.sheetTypes.push(createSheetType());
@@ -203,7 +226,7 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
     );
     if (this.plugin.settings.sheetTypes.length === 0) {
       containerEl.createEl("p", {
-        text: `No sheet types are defined yet, so no timesheet code block is rendered. Add a type with an empty code block type to get the plain "${DEFAULT_CODE_BLOCK}" one, or fill the field in to get a "${SHEET_TYPE_CODE_BLOCK_PREFIX}" one.`,
+        text: `No sheet types are defined yet, so no timesheet code block is rendered. Add a type with an empty code block type to get the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" ones, or fill the field in to get a "${SHEET_TYPE_CODE_BLOCK_PREFIX}" pair.`,
         cls: "setting-item-description"
       });
       return;
@@ -224,7 +247,7 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
       })
     );
     new import_obsidian.Setting(sheetTypeEl).setName("Code block type").setDesc(
-      `An identifier without spaces. It is added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix: for example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" code blocks. Leave the field empty to describe the plain "${DEFAULT_CODE_BLOCK}" code block.`
+      `An identifier without spaces. It is added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix: for example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" and "${getSheetTypeQueryCodeBlockName("hobby")}" code blocks. Leave the field empty to describe the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" ones.`
     ).addText(
       (text) => {
         var _a;
@@ -250,7 +273,7 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
       }
     );
     new import_obsidian.Setting(sheetTypeEl).setName("Default task number pattern").setDesc(
-      "Patterns applied to task records of this sheet type, one pattern per line. They are used by the code blocks of this type that have no patterns of their own."
+      "Patterns applied to task records of this sheet type, one pattern per line. They are used by the code blocks of this type that have no patterns of their own, and always by its query code blocks."
     ).setClass("text-snippets-class").addTextArea(
       (text) => {
         var _a;
@@ -338,11 +361,320 @@ var TimesheetSettingTab = class extends import_obsidian.PluginSettingTab {
   }
 };
 
-// src/codeblocks/timesheet-render-child.ts
+// src/query.ts
+var import_obsidian2 = require("obsidian");
+var ISO_DATE_FORMAT = "YYYY-MM-DD";
+var QUERY_SETTING_FROM = "from";
+var QUERY_SETTING_TO = "to";
+var QUERY_SETTING_PERIOD = "period";
+var QUERY_SETTINGS = [
+  QUERY_SETTING_FROM,
+  QUERY_SETTING_TO,
+  QUERY_SETTING_PERIOD
+];
+var YEAR_PATTERN = /^\d{4}$/;
+var MONTH_PATTERN = /^\d{4}-\d{2}$/;
+var DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+var OFFSET_PATTERN = /^([+-])(\d+)([dwmy])$/i;
+var OFFSET_UNITS = {
+  d: "days",
+  w: "weeks",
+  m: "months",
+  y: "years"
+};
+var NAMED_DAYS = {
+  today: 0,
+  yesterday: -1,
+  tomorrow: 1
+};
+var NAMED_PERIODS = {
+  "this-week": { unit: "week", shift: 0 },
+  "last-week": { unit: "week", shift: -1 },
+  "this-month": { unit: "month", shift: 0 },
+  "last-month": { unit: "month", shift: -1 },
+  "this-year": { unit: "year", shift: 0 },
+  "last-year": { unit: "year", shift: -1 }
+};
+var DATES_HINT = "a date (2026-07-01, 2026-07, 2026)";
+var SHIFTS_HINT = "a shift from today (today, yesterday, tomorrow, -7d, +2w, -1m)";
+function parseTimesheetQuery(src) {
+  const text = src.trim();
+  if (text === "") {
+    return { range: null, relative: false, errors: [] };
+  }
+  const impossible = findImpossibleDates(text);
+  if (impossible.length > 0) {
+    return {
+      range: null,
+      relative: false,
+      errors: impossible.map(
+        (date) => `"${date}" is not a date that exists.`
+      )
+    };
+  }
+  let data;
+  try {
+    data = (0, import_obsidian2.parseYaml)(text);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      range: null,
+      relative: false,
+      errors: [`The code block is not a valid YAML: ${message}`]
+    };
+  }
+  if (data === null || data === void 0) {
+    return { range: null, relative: false, errors: [] };
+  }
+  if (typeof data !== "object" || Array.isArray(data)) {
+    return {
+      range: null,
+      relative: false,
+      errors: [
+        `The code block must be a list of settings, like "${QUERY_SETTING_PERIOD}: 2026-07".`
+      ]
+    };
+  }
+  return readSettings(data);
+}
+function findImpossibleDates(text) {
+  const dates = text.match(/\d{4}-\d{2}-\d{2}/g);
+  if (dates === null) {
+    return [];
+  }
+  const impossible = [];
+  dates.forEach((date) => {
+    if (isWrittenDay(date) || impossible.indexOf(date) !== -1) {
+      return;
+    }
+    impossible.push(date);
+  });
+  return impossible;
+}
+function isWrittenDay(text) {
+  const date = new Date(
+    Date.UTC(
+      Number(text.slice(0, 4)),
+      Number(text.slice(5, 7)) - 1,
+      Number(text.slice(8, 10))
+    )
+  );
+  return import_obsidian2.moment.utc(date).format(ISO_DATE_FORMAT) === text;
+}
+function readSettings(raw) {
+  const errors = [];
+  const empty = { range: null, relative: false, errors };
+  const unknown = Object.keys(raw).filter(
+    (key) => QUERY_SETTINGS.indexOf(key) === -1
+  );
+  if (unknown.length > 0) {
+    errors.push(
+      `Unknown ${unknown.length === 1 ? "setting" : "settings"}: ${unknown.map((key) => `"${key}"`).join(", ")}. Available ones are ${QUERY_SETTINGS.map(
+        (key) => `"${key}"`
+      ).join(", ")}.`
+    );
+  }
+  const period = readSetting(raw, QUERY_SETTING_PERIOD, errors);
+  const from = readSetting(raw, QUERY_SETTING_FROM, errors);
+  const to = readSetting(raw, QUERY_SETTING_TO, errors);
+  if (period !== "" && (from !== "" || to !== "")) {
+    errors.push(
+      `"${QUERY_SETTING_PERIOD}" cannot be used together with "${QUERY_SETTING_FROM}" and "${QUERY_SETTING_TO}": either name a period or set its bounds.`
+    );
+    return empty;
+  }
+  const range = period !== "" ? resolvePeriod(period, errors) : resolveBounds(from, to, errors);
+  if (errors.length > 0 || range === null) {
+    return empty;
+  }
+  if (range.from !== null && range.to !== null && range.from > range.to) {
+    errors.push(
+      `The range is empty: "${QUERY_SETTING_FROM}" (${range.from}) is later than "${QUERY_SETTING_TO}" (${range.to}).`
+    );
+    return empty;
+  }
+  return {
+    range,
+    relative: isRelative(period) || isRelative(from) || isRelative(to),
+    errors
+  };
+}
+function isRelative(text) {
+  return text !== "" && parseUnitDate(text) === null;
+}
+function readSetting(raw, key, errors) {
+  const value = raw[key];
+  if (value === null || value === void 0) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  if (value instanceof Date) {
+    return import_obsidian2.moment.utc(value).format(ISO_DATE_FORMAT);
+  }
+  errors.push(`"${key}" must be ${DATES_HINT} or a period, written in a single line.`);
+  return "";
+}
+function resolveBounds(from, to, errors) {
+  if (from === "" && to === "") {
+    return null;
+  }
+  return {
+    from: from === "" ? null : resolveBound(from, QUERY_SETTING_FROM, errors),
+    to: to === "" ? null : resolveBound(to, QUERY_SETTING_TO, errors)
+  };
+}
+function resolveBound(text, key, errors) {
+  const unitDate = parseUnitDate(text);
+  if (unitDate !== null) {
+    const date = key === QUERY_SETTING_FROM ? unitDate.date.clone().startOf(unitDate.unit) : unitDate.date.clone().endOf(unitDate.unit);
+    return date.format(ISO_DATE_FORMAT);
+  }
+  const relative = parseRelativeDay(text);
+  if (relative !== null) {
+    return relative.format(ISO_DATE_FORMAT);
+  }
+  errors.push(
+    `"${key}" is set to "${text}", which is neither ${DATES_HINT} nor ${SHIFTS_HINT}.`
+  );
+  return null;
+}
+function resolvePeriod(text, errors) {
+  const unitDate = parseUnitDate(text);
+  if (unitDate !== null) {
+    return {
+      from: unitDate.date.clone().startOf(unitDate.unit).format(ISO_DATE_FORMAT),
+      to: unitDate.date.clone().endOf(unitDate.unit).format(ISO_DATE_FORMAT)
+    };
+  }
+  const named = NAMED_PERIODS[text.toLowerCase()];
+  if (named !== void 0) {
+    const date = (0, import_obsidian2.moment)().add(named.shift, named.unit);
+    return {
+      from: date.clone().startOf(named.unit).format(ISO_DATE_FORMAT),
+      to: date.clone().endOf(named.unit).format(ISO_DATE_FORMAT)
+    };
+  }
+  const day = parseRelativeDay(text);
+  if (day !== null) {
+    const value = day.format(ISO_DATE_FORMAT);
+    return { from: value, to: value };
+  }
+  errors.push(
+    `"${QUERY_SETTING_PERIOD}" is set to "${text}", which is neither ${DATES_HINT} nor a named period (this-week, last-week, this-month, last-month, this-year, last-year) nor ${SHIFTS_HINT}.`
+  );
+  return null;
+}
+function parseUnitDate(text) {
+  let unit;
+  let format;
+  if (YEAR_PATTERN.test(text)) {
+    unit = "year";
+    format = "YYYY";
+  } else if (MONTH_PATTERN.test(text)) {
+    unit = "month";
+    format = "YYYY-MM";
+  } else if (DAY_PATTERN.test(text)) {
+    unit = "day";
+    format = ISO_DATE_FORMAT;
+  } else {
+    return null;
+  }
+  const date = (0, import_obsidian2.moment)(text, format, true);
+  return date.isValid() ? { date, unit } : null;
+}
+function parseRelativeDay(text) {
+  const key = text.toLowerCase();
+  const named = NAMED_DAYS[key];
+  if (named !== void 0) {
+    return (0, import_obsidian2.moment)().startOf("day").add(named, "days");
+  }
+  const offset = OFFSET_PATTERN.exec(key);
+  if (offset === null) {
+    return null;
+  }
+  const amount = Number(offset[2]) * (offset[1] === "-" ? -1 : 1);
+  return (0, import_obsidian2.moment)().startOf("day").add(amount, OFFSET_UNITS[offset[3]]);
+}
+
+// src/daily-notes.ts
 var import_obsidian3 = require("obsidian");
+var DAILY_NOTES_SETTINGS_FILE = "daily-notes.json";
+var DEFAULT_DAILY_NOTE_FORMAT = "YYYY-MM-DD";
+var MARKDOWN_EXTENSION = ".md";
+async function readDailyNotesSettings(app) {
+  const path = (0, import_obsidian3.normalizePath)(
+    `${app.vault.configDir}/${DAILY_NOTES_SETTINGS_FILE}`
+  );
+  let raw = {};
+  try {
+    if (await app.vault.adapter.exists(path)) {
+      const data = JSON.parse(await app.vault.adapter.read(path));
+      if (data !== null && typeof data === "object") {
+        raw = data;
+      }
+    }
+  } catch (e) {
+    raw = {};
+  }
+  return {
+    folder: typeof raw.folder === "string" ? normalizeFolder(raw.folder) : "",
+    format: typeof raw.format === "string" && raw.format.trim() !== "" ? raw.format.trim() : DEFAULT_DAILY_NOTE_FORMAT
+  };
+}
+function findDailyNotes(app, settings, range) {
+  const notes = [];
+  app.vault.getMarkdownFiles().forEach((file) => {
+    const date = getDailyNoteDate(settings, file.path);
+    if (date === null || !isWithinRange(range, date)) {
+      return;
+    }
+    notes.push({ file, date });
+  });
+  notes.sort((first, second) => {
+    if (first.date !== second.date) {
+      return first.date < second.date ? -1 : 1;
+    }
+    return first.file.path < second.file.path ? -1 : 1;
+  });
+  return notes;
+}
+function getDailyNoteDate(settings, path) {
+  const prefix = settings.folder === "" ? "" : `${settings.folder}/`;
+  if (!path.startsWith(prefix)) {
+    return null;
+  }
+  const name = path.slice(prefix.length);
+  if (!name.toLowerCase().endsWith(MARKDOWN_EXTENSION)) {
+    return null;
+  }
+  const date = (0, import_obsidian3.moment)(
+    name.slice(0, name.length - MARKDOWN_EXTENSION.length),
+    settings.format,
+    true
+  );
+  return date.isValid() ? date.format(ISO_DATE_FORMAT) : null;
+}
+function isWithinRange(range, date) {
+  if (range.from !== null && date < range.from) {
+    return false;
+  }
+  return range.to === null || date <= range.to;
+}
+function normalizeFolder(folder) {
+  const value = folder.trim();
+  return value === "" || value === "/" ? "" : (0, import_obsidian3.normalizePath)(value);
+}
+
+// src/codeblocks/timesheet-render-child.ts
+var import_obsidian5 = require("obsidian");
 
 // src/parser.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 var TimeLogsParser = class {
   static timeLogs(text, taskNumberPatterns) {
     const result = [];
@@ -373,8 +705,8 @@ var TimeLogsParser = class {
   }
   static getTimeLog(title, taskNumberPatterns) {
     const period = this.getPeriod(title);
-    const start = (0, import_obsidian2.moment)(period.startTime, "HH:mm");
-    let end = (0, import_obsidian2.moment)(period.endTime, "HH:mm");
+    const start = (0, import_obsidian4.moment)(period.startTime, "HH:mm");
+    let end = (0, import_obsidian4.moment)(period.endTime, "HH:mm");
     if (end.isBefore(start)) {
       end = end.add(1, "day");
     }
@@ -405,9 +737,6 @@ var TimeLogsParser = class {
       return true;
     });
     return taskNumber;
-  }
-  static getTimestamp(time) {
-    return Date.parse(`0001-01-01 ${time}`);
   }
 };
 
@@ -452,12 +781,40 @@ var TimeLogsOverlaps = class {
 var OVERLAPS_WARNING_TITLE = "Overlapping tasks";
 var OVERLAPS_SEPARATOR = "\u2194";
 var TimesheetCodeBlock = class {
+  /** Builds a report on the note a code block belongs to. */
   static buildOutput(settings, src, noteText) {
-    const taskNumberPatterns = this.getTaskNumberPatterns(src, settings);
-    const timeLogs = TimeLogsParser.timeLogs(
-      noteText,
-      taskNumberPatterns
-    ).filter((timeLog) => timeLog.taskNumber !== "");
+    return this.buildReport(
+      settings,
+      this.getTaskNumberPatterns(src, settings),
+      [noteText]
+    );
+  }
+  /**
+   * Builds a report on the texts of one or more notes.
+   *
+   * Task records are collected from every text and grouped by task number,
+   * so it makes no difference for a report whether they come from a single
+   * note or from a bunch of them. Overlapping records, though, are looked
+   * for in every text on its own: records of different days cover the same
+   * part of a day by design.
+   */
+  static buildReport(settings, taskNumberPatterns, noteTexts) {
+    const timeLogs = [];
+    const overlaps = [];
+    noteTexts.forEach((noteText) => {
+      const noteTimeLogs = TimeLogsParser.timeLogs(
+        noteText,
+        taskNumberPatterns
+      ).filter((timeLog) => timeLog.taskNumber !== "");
+      if (settings.warnAboutOverlaps) {
+        TimeLogsOverlaps.find(noteTimeLogs).forEach((overlap) => {
+          overlaps.push(overlap);
+        });
+      }
+      noteTimeLogs.forEach((timeLog) => {
+        timeLogs.push(timeLog);
+      });
+    });
     const tasks = [];
     timeLogs.forEach((timeLog) => {
       let task = tasks.find((task2) => task2.number == timeLog.taskNumber);
@@ -519,7 +876,7 @@ var TimesheetCodeBlock = class {
     if (settings.templateFooter) {
       output = output ? this.joinTemplateSections(output, settings.templateFooter) : settings.templateFooter;
     }
-    const warning = this.buildOverlapsWarning(settings, timeLogs);
+    const warning = this.buildOverlapsWarning(settings, overlaps);
     if (warning) {
       output = output ? `${warning}
 
@@ -535,11 +892,10 @@ ${output}` : warning;
    * The callout is a separate block, so it is not affected by the output
    * templates: it must be noticeable no matter how a report is customized.
    */
-  static buildOverlapsWarning(settings, timeLogs) {
+  static buildOverlapsWarning(settings, overlaps) {
     if (!settings.warnAboutOverlaps) {
       return "";
     }
-    const overlaps = TimeLogsOverlaps.find(timeLogs);
     if (overlaps.length === 0) {
       return "";
     }
@@ -585,7 +941,7 @@ ${normalizedRight}`;
     result = result.replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2");
     result = result.replace(/(~~|==)(?=\S)([\s\S]*?\S)\1/g, "$2");
     result = result.replace(/\*(?=\S)([\s\S]*?\S)\*/g, "$1");
-    result = result.replace(/(?<!\w)_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1");
+    result = result.replace(/(^|[^\w])_(?=\S)([\s\S]*?\S)_(?!\w)/g, "$1$2");
     result = result.replace(/\\([\\`*{}[\]()#+\-.!_|>~])/g, "$1");
     return result.replace(/\s+/g, " ").trim();
   }
@@ -613,16 +969,15 @@ ${normalizedRight}`;
     return result;
   }
   static getTaskNumberPatterns(codeblockText, settings) {
-    let patternsString = codeblockText.trim();
-    if (patternsString == "") {
-      patternsString = settings.defaultTaskNumberPatterns;
-    }
-    return patternsString.split("\n").map((patternString) => patternString.trim());
+    const patternsString = codeblockText.trim();
+    return getTaskNumberPatterns(
+      patternsString === "" ? settings.defaultTaskNumberPatterns : patternsString
+    );
   }
 };
 
 // src/codeblocks/timesheet-render-child.ts
-var TimesheetRenderChild = class extends import_obsidian3.MarkdownRenderChild {
+var TimesheetRenderChild = class extends import_obsidian5.MarkdownRenderChild {
   constructor(plugin, source, body, file, sheetTypeCode) {
     super(body);
     this.plugin = plugin;
@@ -650,7 +1005,7 @@ var TimesheetRenderChild = class extends import_obsidian3.MarkdownRenderChild {
   }
   onunload() {
     if (this.updateTimer !== null) {
-      window.clearTimeout(this.updateTimer);
+      activeWindow.clearTimeout(this.updateTimer);
     }
     this.pendingNoteText = null;
   }
@@ -676,7 +1031,7 @@ var TimesheetRenderChild = class extends import_obsidian3.MarkdownRenderChild {
           continue;
         }
         this.body.empty();
-        await import_obsidian3.MarkdownRenderer.render(
+        await import_obsidian5.MarkdownRenderer.render(
           this.plugin.app,
           output,
           this.body,
@@ -691,9 +1046,9 @@ var TimesheetRenderChild = class extends import_obsidian3.MarkdownRenderChild {
   }
   scheduleUpdate(noteText) {
     if (this.updateTimer !== null) {
-      window.clearTimeout(this.updateTimer);
+      activeWindow.clearTimeout(this.updateTimer);
     }
-    this.updateTimer = window.setTimeout(() => {
+    this.updateTimer = activeWindow.setTimeout(() => {
       this.updateTimer = null;
       void this.update(noteText).catch((error) => {
         this.showError(error);
@@ -702,6 +1057,214 @@ var TimesheetRenderChild = class extends import_obsidian3.MarkdownRenderChild {
   }
   showError(error) {
     const message = error instanceof Error ? error.message : String(error);
+    this.lastOutput = null;
+    this.body.empty();
+    this.body.createEl("h3", {
+      text: `Failed to show timesheet: ${message}`
+    });
+  }
+};
+
+// src/codeblocks/timesheet-query-render-child.ts
+var import_obsidian6 = require("obsidian");
+var UPDATE_DELAY = 250;
+var ERRORS_CALLOUT_TITLE = "Timesheet query";
+var RANGE_HINT = [
+  "> [!tip] Date range is not set",
+  `> A report is built for the daily notes of a date range, so name a period \u2014 for example, \`${QUERY_SETTING_PERIOD}: 2026-07\` \u2014 or set the \`${QUERY_SETTING_FROM}\` and \`${QUERY_SETTING_TO}\` settings of the code block.`
+].join("\n");
+var TimesheetQueryRenderChild = class extends import_obsidian6.MarkdownRenderChild {
+  constructor(plugin, source, body, file, sheetTypeCode) {
+    super(body);
+    this.plugin = plugin;
+    this.source = source;
+    this.body = body;
+    this.file = file;
+    this.sheetTypeCode = sheetTypeCode;
+    this.updateTimer = null;
+    this.rendering = false;
+    this.updateRequested = false;
+    this.lastOutput = null;
+    this.range = null;
+    this.rangeIsRelative = false;
+    this.unsavedNoteTexts = /* @__PURE__ */ new Map();
+  }
+  onload() {
+    const vault = this.plugin.app.vault;
+    this.registerEvent(
+      vault.on("create", (file) => this.onVaultChange(file))
+    );
+    this.registerEvent(
+      vault.on("delete", (file) => {
+        this.unsavedNoteTexts.delete(file.path);
+        this.onVaultChange(file);
+      })
+    );
+    this.registerEvent(
+      vault.on("modify", (file) => {
+        this.unsavedNoteTexts.delete(file.path);
+        this.onVaultChange(file);
+      })
+    );
+    this.registerEvent(
+      vault.on("rename", (file, oldPath) => {
+        this.unsavedNoteTexts.delete(oldPath);
+        this.onVaultChange(file, oldPath);
+      })
+    );
+    this.registerEvent(
+      this.plugin.app.workspace.on("quick-preview", (file, noteText) => {
+        if (!this.mayAffectReport(file.path)) {
+          return;
+        }
+        this.unsavedNoteTexts.set(file.path, noteText);
+        this.scheduleUpdate();
+      })
+    );
+  }
+  onunload() {
+    if (this.updateTimer !== null) {
+      activeWindow.clearTimeout(this.updateTimer);
+    }
+    this.unsavedNoteTexts.clear();
+  }
+  async update() {
+    this.updateRequested = true;
+    if (this.rendering) {
+      return;
+    }
+    this.rendering = true;
+    try {
+      while (this.updateRequested) {
+        this.updateRequested = false;
+        const output = await this.buildOutput();
+        if (output === this.lastOutput) {
+          continue;
+        }
+        this.body.empty();
+        await import_obsidian6.MarkdownRenderer.render(
+          this.plugin.app,
+          output,
+          this.body,
+          this.file.path,
+          this
+        );
+        this.lastOutput = output;
+      }
+    } finally {
+      this.rendering = false;
+    }
+  }
+  /**
+   * Builds the text of the report, or a callout explaining why there is no
+   * report to show.
+   *
+   * A sheet type that is gone is reported the same way a mistake in the
+   * code block is: a block left over from a deleted sheet type keeps being
+   * rendered until Obsidian is restarted, and an exception thrown on every
+   * change in the vault would be a poor way to say so.
+   */
+  async buildOutput() {
+    const dailyNotesSettings = await this.plugin.getDailyNotesSettings();
+    const query = parseTimesheetQuery(this.source);
+    this.range = query.range;
+    this.rangeIsRelative = query.relative;
+    if (query.errors.length > 0) {
+      return this.buildErrorsCallout(query.errors);
+    }
+    let settings;
+    try {
+      settings = getRenderSettings(
+        this.plugin.settings,
+        this.sheetTypeCode
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return this.buildErrorsCallout([message]);
+    }
+    const taskNumberPatterns = getTaskNumberPatterns(
+      settings.defaultTaskNumberPatterns
+    );
+    if (query.range === null) {
+      const report = TimesheetCodeBlock.buildReport(
+        settings,
+        taskNumberPatterns,
+        []
+      );
+      return report === "" ? RANGE_HINT : `${RANGE_HINT}
+
+${report}`;
+    }
+    const notes = findDailyNotes(
+      this.plugin.app,
+      dailyNotesSettings,
+      query.range
+    );
+    const noteTexts = [];
+    for (const note of notes) {
+      noteTexts.push(await this.readNote(note.file));
+    }
+    return TimesheetCodeBlock.buildReport(
+      settings,
+      taskNumberPatterns,
+      noteTexts
+    );
+  }
+  async readNote(file) {
+    const unsaved = this.unsavedNoteTexts.get(file.path);
+    return unsaved != null ? unsaved : await this.plugin.app.vault.cachedRead(file);
+  }
+  buildErrorsCallout(errors) {
+    const lines = [`> [!error] ${ERRORS_CALLOUT_TITLE}`];
+    errors.forEach((error) => {
+      lines.push(`> - ${error}`);
+    });
+    return lines.join("\n");
+  }
+  onVaultChange(file, oldPath) {
+    if (!this.mayAffectReport(file.path) && (oldPath === void 0 || !this.mayAffectReport(oldPath))) {
+      return;
+    }
+    this.scheduleUpdate();
+  }
+  /**
+   * Tells whether a change of a file is worth rebuilding the report for.
+   *
+   * Only a daily note belonging to a day of the range is — but the range
+   * is the one of the report shown right now, so it is trusted only when
+   * it was written down: a range counted from today, like "last-month",
+   * covers other days tomorrow, and the report has to notice a note the
+   * range it was built from didn't reach yet.
+   *
+   * As long as the settings of the Daily notes core plugin are unknown,
+   * every file is treated as a daily note: an extra update is cheaper than
+   * a report left out of date.
+   */
+  mayAffectReport(path) {
+    const settings = this.plugin.getKnownDailyNotesSettings();
+    if (settings === null) {
+      return true;
+    }
+    const date = getDailyNoteDate(settings, path);
+    if (date === null) {
+      return false;
+    }
+    return this.range === null || this.rangeIsRelative || isWithinRange(this.range, date);
+  }
+  scheduleUpdate() {
+    if (this.updateTimer !== null) {
+      activeWindow.clearTimeout(this.updateTimer);
+    }
+    this.updateTimer = activeWindow.setTimeout(() => {
+      this.updateTimer = null;
+      void this.update().catch((error) => {
+        this.showError(error);
+      });
+    }, UPDATE_DELAY);
+  }
+  showError(error) {
+    const message = error instanceof Error ? error.message : String(error);
+    this.lastOutput = null;
     this.body.empty();
     this.body.createEl("h3", {
       text: `Failed to show timesheet: ${message}`
@@ -879,12 +1442,16 @@ function getTaskContentEl(item) {
 }
 
 // src/main.ts
-var Timesheet = class extends import_obsidian4.Plugin {
+var DAILY_NOTES_SETTINGS_LIFETIME = 5e3;
+var Timesheet = class extends import_obsidian7.Plugin {
   constructor() {
     super(...arguments);
     this.registeredCodeBlocks = /* @__PURE__ */ new Set();
     this.sheetTypeCommands = /* @__PURE__ */ new Map();
     this.taskDecorationExtensions = [];
+    this.dailyNotesSettings = null;
+    this.dailyNotesSettingsReadAt = 0;
+    this.dailyNotesSettingsRequest = null;
   }
   async onload() {
     await this.loadSettings();
@@ -898,45 +1465,65 @@ var Timesheet = class extends import_obsidian4.Plugin {
   /**
    * Registers code blocks and commands for sheet types defined in settings.
    *
-   * A sheet type without a code block type is no exception: it defines the
-   * plain "timesheet" code block and the command inserting it exactly the
-   * way the other types define theirs, so a vault without such a type has
-   * neither the block nor the command.
+   * Every sheet type defines two code blocks: the plain one, reporting on
+   * the note it belongs to, and the "-query" one, reporting on the daily
+   * notes of a date range. A sheet type without a code block type is no
+   * exception: it defines the "timesheet" and "timesheet-query" blocks and
+   * the commands inserting them exactly the way the other types define
+   * theirs, so a vault without such a type has neither the blocks nor the
+   * commands.
    *
    * Obsidian doesn't allow unregistering a code block processor, so the ones
    * belonging to deleted sheet types stay registered until the next reload;
    * they report the sheet type as unknown.
    */
   refreshSheetTypes() {
-    const commandNames = /* @__PURE__ */ new Map();
+    const commands = /* @__PURE__ */ new Map();
     this.settings.sheetTypes.forEach((sheetType) => {
       const code = normalizeSheetTypeCode(sheetType.code);
       const codeBlock = getSheetTypeCodeBlockName(code);
-      if (commandNames.has(codeBlock)) {
+      const queryCodeBlock = getSheetTypeQueryCodeBlockName(code);
+      if (commands.has(codeBlock) || commands.has(queryCodeBlock)) {
         return;
       }
-      commandNames.set(codeBlock, getSheetTypeCommandName(sheetType));
+      commands.set(codeBlock, {
+        name: getSheetTypeCommandName(sheetType),
+        body: ""
+      });
+      commands.set(queryCodeBlock, {
+        name: getSheetTypeQueryCommandName(sheetType),
+        body: `${QUERY_SETTING_PERIOD}: `
+      });
       this.registerCodeBlock(codeBlock, code);
+      this.registerQueryCodeBlock(queryCodeBlock, code);
     });
-    this.sheetTypeCommands.forEach((name, codeBlock) => {
-      if (commandNames.get(codeBlock) === name) {
+    this.sheetTypeCommands.forEach((command, codeBlock) => {
+      var _a;
+      if (((_a = commands.get(codeBlock)) == null ? void 0 : _a.name) === command.name) {
         return;
       }
       this.removeCommand(`insert-${codeBlock}`);
       this.sheetTypeCommands.delete(codeBlock);
     });
-    commandNames.forEach((name, codeBlock) => {
+    commands.forEach((command, codeBlock) => {
       if (this.sheetTypeCommands.has(codeBlock)) {
         return;
       }
-      this.sheetTypeCommands.set(codeBlock, name);
+      this.sheetTypeCommands.set(codeBlock, command);
       this.addCommand({
         id: `insert-${codeBlock}`,
-        name,
+        name: command.name,
         editorCallback: (editor, view) => {
-          editor.replaceSelection(`\`\`\`${codeBlock}
-
-\`\`\``);
+          editor.replaceSelection(
+            `\`\`\`${codeBlock}
+${command.body}
+\`\`\``
+          );
+          const cursor = editor.getCursor();
+          editor.setCursor({
+            line: cursor.line - 1,
+            ch: command.body.length
+          });
         }
       });
     });
@@ -966,13 +1553,96 @@ var Timesheet = class extends import_obsidian4.Plugin {
           ctx.addChild(child);
           await child.update(await this.getCurrentNoteText(file));
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          el.createEl("h3", {
-            text: `Failed to show timesheet: ${message}`
-          });
+          this.showCodeBlockError(el, error);
         }
       }
     );
+  }
+  /**
+   * Registers a code block reporting on the daily notes of a date range.
+   *
+   * Such a block knows nothing about the note it is written in: the text of
+   * the note is not passed to the render child, which collects the notes to
+   * report on by itself.
+   */
+  registerQueryCodeBlock(codeBlock, sheetTypeCode) {
+    if (this.registeredCodeBlocks.has(codeBlock)) {
+      return;
+    }
+    this.registeredCodeBlocks.add(codeBlock);
+    this.registerMarkdownCodeBlockProcessor(
+      codeBlock,
+      async (src, el, ctx) => {
+        try {
+          const file = this.app.vault.getFileByPath(ctx.sourcePath);
+          if (file === null) {
+            return;
+          }
+          const root = el.createEl("div");
+          const body = root.createEl("div");
+          const child = new TimesheetQueryRenderChild(
+            this,
+            src,
+            body,
+            file,
+            sheetTypeCode
+          );
+          ctx.addChild(child);
+          await child.update();
+        } catch (error) {
+          this.showCodeBlockError(el, error);
+        }
+      }
+    );
+  }
+  /**
+   * Returns the settings of the Daily notes core plugin, reading them anew
+   * once in a while.
+   *
+   * Every query code block asks for the same settings, and a single change
+   * in the vault makes all of them rebuild their reports at once, so the
+   * settings are read for the whole plugin rather than for a code block —
+   * and only one read is made at a time, no matter how many blocks are
+   * waiting for it.
+   */
+  getDailyNotesSettings() {
+    const settings = this.getKnownDailyNotesSettings();
+    if (settings !== null) {
+      return Promise.resolve(settings);
+    }
+    if (this.dailyNotesSettingsRequest === null) {
+      this.dailyNotesSettingsRequest = this.refreshDailyNotesSettings();
+    }
+    return this.dailyNotesSettingsRequest;
+  }
+  async refreshDailyNotesSettings() {
+    try {
+      const settings = await readDailyNotesSettings(this.app);
+      this.dailyNotesSettings = settings;
+      this.dailyNotesSettingsReadAt = Date.now();
+      return settings;
+    } finally {
+      this.dailyNotesSettingsRequest = null;
+    }
+  }
+  /**
+   * Returns the settings of the Daily notes core plugin without reading
+   * them, or null when the ones read last time are too old to be trusted.
+   *
+   * Settings that may have been changed since they were read are worth no
+   * more than no settings at all: a caller taking the old folder for the
+   * current one would ignore everything happening in the new one — and
+   * would never ask for the settings again, since nothing seems to be
+   * happening.
+   */
+  getKnownDailyNotesSettings() {
+    return Date.now() - this.dailyNotesSettingsReadAt < DAILY_NOTES_SETTINGS_LIFETIME ? this.dailyNotesSettings : null;
+  }
+  showCodeBlockError(el, error) {
+    const message = error instanceof Error ? error.message : String(error);
+    el.createEl("h3", {
+      text: `Failed to show timesheet: ${message}`
+    });
   }
   /**
    * Turns on decorating of task records with the texts of sheet types.
@@ -1018,7 +1688,7 @@ var Timesheet = class extends import_obsidian4.Plugin {
   }
   async getCurrentNoteText(file) {
     var _a;
-    const activeView = this.app.workspace.getActiveViewOfType(import_obsidian4.MarkdownView);
+    const activeView = this.app.workspace.getActiveViewOfType(import_obsidian7.MarkdownView);
     if (((_a = activeView == null ? void 0 : activeView.file) == null ? void 0 : _a.path) === file.path) {
       return activeView.editor.getValue();
     }
