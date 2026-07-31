@@ -254,3 +254,7 @@ The sheet type of the plain `timesheet` code block takes part in this as well, s
 ### How are extra blank lines around the report content handled?
 
 Timesheet removes extra line breaks generated at the boundary after the **Header** template and before the **Footer** template. Exactly one line break is kept between these sections and the generated task content. Line breaks inside Header, Task, Task log, and Footer templates are not changed.
+
+## 🙏 Credits
+
+Development of this plugin is assisted by the [obsidian-plugin-skill](https://github.com/gapmiss/obsidian-plugin-skill) by [gapmiss](https://github.com/gapmiss), used under the MIT License (see [NOTICE](.claude/skills/obsidian/NOTICE)).
