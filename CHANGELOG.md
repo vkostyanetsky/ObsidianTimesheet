@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.8.0 - 2026-08-01
+
+### Changed
+
+* The **Sheet types** section is now a list of rows instead of a stack of sections. A row shows the name of the code block the type renders together with its **Code block type** and **Title** fields, and unfolds into the rest of the settings of the type, so a vault with several sheet types no longer has to be scrolled through to reach one of them.
+* Added the **Move up** and **Move down** buttons to every sheet type. The order of the types decides which of them a task record matched by more than one type belongs to, and until now it could only be changed by retyping the types.
+
 ## 1.7.0 - 2026-07-30
 
 ### Added

@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, ButtonComponent, PluginSettingTab, Setting } from "obsidian";
 import Timesheet from "./main";
 
 export const SHEET_TYPE_CODE_BLOCK_PREFIX = "timesheet-";
@@ -343,6 +343,17 @@ export function getRenderSettings(
 export class TimesheetSettingTab extends PluginSettingTab {
 	plugin: Timesheet;
 
+    /**
+     * Sheet types whose settings are unfolded.
+     *
+     * Adding, deleting or moving a sheet type redraws the whole tab, so the
+     * unfolded ones are remembered — otherwise every click would collapse the
+     * type being worked on. They are remembered by reference rather than by
+     * position, so that moving a type keeps it unfolded and doesn't unfold the
+     * one it changed places with.
+     */
+    private readonly expandedSheetTypes = new WeakSet<SheetTypeSettings>();
+
 	constructor(app: App, plugin: Timesheet) {
 		super(app, plugin);
 		this.plugin = plugin;
@@ -425,15 +436,23 @@ export class TimesheetSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName("Sheet types")
             .setDesc(
-                `Sheet types define the timesheet code blocks you can use. Each type has its own code block name, task number patterns, and templates, and renders two code blocks: one reporting on the note it is written in, and a "${SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.slice(1)}" one reporting on the daily notes of a date range. A type with an empty code block type describes the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" code blocks.`
+                `Sheet types define the timesheet code blocks you can use. Each type has its own task number patterns and templates, and renders two code blocks: one reporting on the note it is written in, and a "${SHEET_TYPE_QUERY_CODE_BLOCK_SUFFIX.slice(1)}" one reporting on the daily notes of a date range. Task records are matched against the types in the order they are listed here, so keep the more specific ones above.`
             )
             .setHeading()
             .addButton((button) =>
                 button
                     .setButtonText("Add sheet type")
+                    .setTooltip("Add a new sheet type")
                     .setCta()
                     .onClick(async () => {
-                        this.plugin.settings.sheetTypes.push(createSheetType());
+                        const sheetType = createSheetType();
+
+                        // A type is added to be filled in, so it is unfolded
+                        // right away: an empty collapsed row says nothing
+                        // about what is left to type.
+                        this.expandedSheetTypes.add(sheetType);
+                        this.plugin.settings.sheetTypes.push(sheetType);
+
                         await this.plugin.saveSettings();
                         this.display();
                     })
@@ -448,42 +467,51 @@ export class TimesheetSettingTab extends PluginSettingTab {
             return;
         }
 
+        const listEl = containerEl.createDiv({ cls: "timesheet-sheet-types" });
+
         this.plugin.settings.sheetTypes.forEach((sheetType, sheetTypeIndex) => {
-            this.displaySheetType(containerEl, sheetType, sheetTypeIndex);
+            this.displaySheetType(listEl, sheetType, sheetTypeIndex);
         });
     }
 
+    /**
+     * Draws a row of the sheet types list.
+     *
+     * A row always shows the name of the code block the type renders together
+     * with the two fields defining it, and unfolds into the rest of its
+     * settings. The buttons next to them manage the list itself: the order of
+     * the types matters, since a task record belongs to the first type whose
+     * patterns match it.
+     */
     private displaySheetType(
         containerEl: HTMLElement,
         sheetType: SheetTypeSettings,
         sheetTypeIndex: number
     ): void {
-        const sheetTypeEl = containerEl.createEl("div", {
+        const sheetTypeEl = containerEl.createDiv({
             cls: "timesheet-sheet-type",
         });
 
-        new Setting(sheetTypeEl)
-            .setName(this.getSheetTypeHeading(sheetType))
-            .setHeading()
-            .addExtraButton((button) =>
-                button
-                    .setIcon("trash")
-                    .setTooltip("Delete sheet type")
-                    .onClick(async () => {
-                        this.plugin.settings.sheetTypes.splice(sheetTypeIndex, 1);
-                        await this.plugin.saveSettings();
-                        this.display();
-                    })
-            );
+        const header = new Setting(sheetTypeEl)
+            .setName(this.getSheetTypeCodeBlockLabel(sheetType))
+            .setClass("timesheet-sheet-type-header");
 
-        new Setting(sheetTypeEl)
-            .setName("Code block type")
-            .setDesc(
-                `An identifier without spaces. It is added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix: for example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" and "${getSheetTypeQueryCodeBlockName("hobby")}" code blocks. Leave the field empty to describe the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" ones.`
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("hobby")
+        const bodyEl = sheetTypeEl.createDiv({
+            cls: "timesheet-sheet-type-body",
+        });
+
+        this.displaySheetTypeToggle(sheetTypeEl, header, sheetType);
+
+        header
+            .addText((text) => {
+                text.inputEl.addClass("timesheet-sheet-type-code");
+
+                this.describeControl(
+                    text.inputEl,
+                    `Code block type: an identifier without spaces, added to the "${SHEET_TYPE_CODE_BLOCK_PREFIX}" prefix. For example, "hobby" makes the plugin render "${getSheetTypeCodeBlockName("hobby")}" and "${getSheetTypeQueryCodeBlockName("hobby")}" code blocks. Leave it empty to describe the plain "${DEFAULT_CODE_BLOCK}" and "${DEFAULT_QUERY_CODE_BLOCK}" ones.`
+                );
+
+                text.setPlaceholder("Code block type")
                     .setValue(sheetType.code ?? "")
                     .onChange(async (value) => {
                         const code = normalizeSheetTypeCode(value);
@@ -493,26 +521,134 @@ export class TimesheetSettingTab extends PluginSettingTab {
                         }
 
                         sheetType.code = code;
-                        await this.plugin.saveSettings();
-                    })
-            );
 
-        new Setting(sheetTypeEl)
-            .setName("Title")
-            .setDesc(
-                'A human-friendly name of the sheet type. It is shown in brackets after the name of the command inserting a code block of this type: for example, "Insert timesheet (Hobby)". If the title is empty, the code block name is used instead.'
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("Hobby")
+                        // The row is named after the code block the type
+                        // renders, so the name follows the field it is built
+                        // from instead of waiting for the tab to be redrawn.
+                        header.setName(
+                            this.getSheetTypeCodeBlockLabel(sheetType)
+                        );
+
+                        await this.plugin.saveSettings();
+                    });
+            })
+            .addText((text) => {
+                text.inputEl.addClass("timesheet-sheet-type-title");
+
+                this.describeControl(
+                    text.inputEl,
+                    'Title: a human-friendly name of the sheet type, shown in brackets after the name of the command inserting a code block of this type — for example, "Insert timesheet (Hobby)". If the title is empty, the code block name is used instead.'
+                );
+
+                text.setPlaceholder("Title")
                     .setValue(sheetType.title ?? "")
                     .onChange(async (value) => {
                         sheetType.title = value;
                         await this.plugin.saveSettings();
+                    });
+            })
+            .addButton((button) =>
+                this.asIconButton(button)
+                    .setIcon("arrow-up")
+                    .setTooltip("Move up")
+                    .setDisabled(sheetTypeIndex === 0)
+                    .onClick(async () => {
+                        await this.moveSheetType(
+                            sheetTypeIndex,
+                            sheetTypeIndex - 1
+                        );
+                    })
+            )
+            .addButton((button) =>
+                this.asIconButton(button)
+                    .setIcon("arrow-down")
+                    .setTooltip("Move down")
+                    .setDisabled(
+                        sheetTypeIndex ===
+                            this.plugin.settings.sheetTypes.length - 1
+                    )
+                    .onClick(async () => {
+                        await this.moveSheetType(
+                            sheetTypeIndex,
+                            sheetTypeIndex + 1
+                        );
+                    })
+            )
+            .addButton((button) =>
+                this.asIconButton(button, "timesheet-sheet-type-delete")
+                    .setIcon("trash")
+                    .setTooltip("Delete sheet type")
+                    .onClick(async () => {
+                        this.expandedSheetTypes.delete(sheetType);
+                        this.plugin.settings.sheetTypes.splice(
+                            sheetTypeIndex,
+                            1
+                        );
+
+                        await this.plugin.saveSettings();
+                        this.display();
                     })
             );
 
-        new Setting(sheetTypeEl)
+        this.displaySheetTypeBody(bodyEl, sheetType);
+    }
+
+    /**
+     * Adds the button unfolding a row to the left of its name.
+     *
+     * A setting puts everything it is given to the right of the name, so the
+     * button is built on its own and moved to the beginning of the row.
+     */
+    private displaySheetTypeToggle(
+        sheetTypeEl: HTMLElement,
+        header: Setting,
+        sheetType: SheetTypeSettings
+    ): void {
+        const toggle = new ButtonComponent(header.settingEl);
+
+        toggle.buttonEl.addClasses([
+            "clickable-icon",
+            "timesheet-sheet-type-toggle",
+        ]);
+
+        header.settingEl.prepend(toggle.buttonEl);
+
+        const showExpanded = (expanded: boolean): void => {
+            sheetTypeEl.toggleClass(
+                "timesheet-sheet-type-collapsed",
+                !expanded
+            );
+
+            toggle
+                .setIcon(expanded ? "chevron-down" : "chevron-right")
+                .setTooltip(
+                    expanded ? "Collapse sheet type" : "Expand sheet type"
+                );
+
+            toggle.buttonEl.setAttr("aria-expanded", String(expanded));
+        };
+
+        toggle.onClick(() => {
+            const expanded = !this.expandedSheetTypes.has(sheetType);
+
+            if (expanded) {
+                this.expandedSheetTypes.add(sheetType);
+            } else {
+                this.expandedSheetTypes.delete(sheetType);
+            }
+
+            showExpanded(expanded);
+        });
+
+        showExpanded(this.expandedSheetTypes.has(sheetType));
+    }
+
+    /** Draws the settings a row of the sheet types list unfolds into. */
+    private displaySheetTypeBody(
+        containerEl: HTMLElement,
+        sheetType: SheetTypeSettings
+    ): void {
+        new Setting(containerEl)
             .setName("Default task number pattern")
             .setDesc(
                 "Patterns applied to task records of this sheet type, one pattern per line. They are used by the code blocks of this type that have no patterns of their own, and always by its query code blocks."
@@ -527,9 +663,9 @@ export class TimesheetSettingTab extends PluginSettingTab {
                     })
             );
 
-        new Setting(sheetTypeEl).setName("Output").setHeading();
+        new Setting(containerEl).setName("Output").setHeading();
 
-        new Setting(sheetTypeEl)
+        new Setting(containerEl)
             .setName("Text before task")
             .setDesc(
                 "A text shown before task records matching the patterns of this sheet type. It belongs to the note view only: the text is not saved to the note and is not used in reports."
@@ -544,7 +680,7 @@ export class TimesheetSettingTab extends PluginSettingTab {
                     })
             );
 
-        new Setting(sheetTypeEl)
+        new Setting(containerEl)
             .setName("Text after task")
             .setDesc(
                 "Works like the setting above, but the text is shown after a task record. Both settings are empty by default, and leading and trailing spaces in them are kept."
@@ -559,19 +695,61 @@ export class TimesheetSettingTab extends PluginSettingTab {
                     })
             );
 
-        new Setting(sheetTypeEl).setName("Templates").setHeading();
+        new Setting(containerEl).setName("Templates").setHeading();
 
-        this.displayTemplateSettings(sheetTypeEl, sheetType);
+        this.displayTemplateSettings(containerEl, sheetType);
     }
 
-    private getSheetTypeHeading(sheetType: SheetTypeSettings): string {
-        const codeBlock = getSheetTypeCodeBlockName(
+    /**
+     * Moves a sheet type to another place in the list, redrawing the tab so
+     * that the rows are numbered anew.
+     */
+    private async moveSheetType(from: number, to: number): Promise<void> {
+        const sheetTypes = this.plugin.settings.sheetTypes;
+
+        if (to < 0 || to >= sheetTypes.length) {
+            return;
+        }
+
+        const [sheetType] = sheetTypes.splice(from, 1);
+
+        sheetTypes.splice(to, 0, sheetType);
+
+        await this.plugin.saveSettings();
+        this.display();
+    }
+
+    /**
+     * Turns a button into an icon-sized one.
+     *
+     * An extra button would look the same, but it is a div rather than a
+     * button, so it cannot be reached with a keyboard.
+     */
+    private asIconButton(
+        button: ButtonComponent,
+        ...classes: string[]
+    ): ButtonComponent {
+        button.buttonEl.addClasses(["clickable-icon", ...classes]);
+
+        return button;
+    }
+
+    /**
+     * Explains a control of a sheet type row.
+     *
+     * Rows have no room for descriptions, so the text of a field is shown as
+     * a tooltip — the very same label a screen reader announces.
+     */
+    private describeControl(el: HTMLElement, description: string): void {
+        el.setAttr("aria-label", description);
+        el.setAttr("data-tooltip-position", "top");
+    }
+
+    /** Returns the name of the code block a sheet type renders. */
+    private getSheetTypeCodeBlockLabel(sheetType: SheetTypeSettings): string {
+        return getSheetTypeCodeBlockName(
             normalizeSheetTypeCode(sheetType.code)
         );
-
-        const title = (sheetType.title ?? "").trim();
-
-        return title === "" ? codeBlock : `${codeBlock} (${title})`;
     }
 
     private displayTemplateSettings(

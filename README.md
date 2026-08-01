@@ -217,6 +217,8 @@ Since the plugin adds the `timesheet-` prefix and the `-query` suffix itself, a 
 
 There can be only one type per code block name, so if you define two types with the same code block type, the first of them wins and the second one is ignored entirely.
 
+Sheet types are shown as a list of rows. A row is named after the code block the type renders and keeps the **Code block type** and **Title** fields at hand; the arrow at its left unfolds the rest of the settings of the type, and the buttons at its right move the type up and down the list or delete it.
+
 Each sheet type has its own settings:
 
 * **Title** — a human-friendly name of the sheet type. It is shown in brackets after the names of the commands inserting the code blocks of this type: for example, “Insert timesheet (Hobby)” and “Insert timesheet query (Hobby)”. If the title is empty, the code block names are used instead: “Insert timesheet-hobby” and “Insert timesheet-hobby-query”.
@@ -247,7 +249,7 @@ The texts belong to the note view only. They are not saved to the note, they are
 
 Leading and trailing spaces are kept, so you decide whether a text is separated from the record or glued to it. Both settings are empty by default, which means nothing is added.
 
-Sheet types are checked in the order they are listed in the settings, and the first type whose patterns match a record wins — even when both of its texts are empty. In other words, a record never gets a text of a sheet type it doesn't belong to; reorder the types if a record is matched by more than one of them.
+Sheet types are checked in the order they are listed in the settings, and the first type whose patterns match a record wins — even when both of its texts are empty. In other words, a record never gets a text of a sheet type it doesn't belong to; use the **Move up** and **Move down** buttons of a type if a record is matched by more than one of them.
 
 The sheet type of the plain `timesheet` code block takes part in this as well, since it is an ordinary sheet type. When settings of a version older than 1.6.0 are converted, it is added after the types you already had, so the texts you set up keep being shown for the same records as before.
 
