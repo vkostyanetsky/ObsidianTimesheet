@@ -1,7 +1,5 @@
 # Obsidian Timesheet 🏢 📑 ⌛
 
-[![ESLint](https://github.com/vkostyanetsky/ObsidianTimesheet/actions/workflows/eslint.yml/badge.svg)](https://github.com/vkostyanetsky/ObsidianTimesheet/actions/workflows/eslint.yml)
-
 [README in Russian](README.ru.md)
 
 It is a plugin for [Obsidian](https://obsidian.md) designed to generate timesheets for tasks in daily notes.

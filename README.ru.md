@@ -1,7 +1,5 @@
 # Obsidian Timesheet 🏢 📑 ⌛
 
-[![ESLint](https://github.com/vkostyanetsky/ObsidianTimesheet/actions/workflows/eslint.yml/badge.svg)](https://github.com/vkostyanetsky/ObsidianTimesheet/actions/workflows/eslint.yml)
-
 [README in English](README.md)
 
 Это плагин для [Obsidian](https://obsidian.md), предназначенный для создания отчётов о времени, потраченном на задачи из ежедневных заметок.
