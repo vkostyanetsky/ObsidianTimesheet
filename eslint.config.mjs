@@ -10,7 +10,7 @@ export default [
 	tseslint.configs["flat/eslint-recommended"],
 	...tseslint.configs["flat/recommended"],
 	{
-		files: ["**/*.{js,jsx,ts,tsx}"],
+		files: ["**/*.{js,jsx,ts,tsx,mts}"],
 		languageOptions: {
 			parser: tsparser,
 			sourceType: "module",

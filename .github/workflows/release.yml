@@ -1,32 +1,77 @@
 name: Release Obsidian plugin
 
 on:
-  workflow_dispatch:      
+  # A release is built from the tag "npm version" leaves behind, so that the
+  # version of the release is the version the plugin was built with.
+  push:
+    tags: ["*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to build the release from
+        required: true
+
+permissions:
+  contents: write
+  # Attesting a build needs a token of its own, and the attestation itself has
+  # to be written down somewhere.
+  id-token: write
+  attestations: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Use Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
-          node-version: "22.x"
+          node-version: "24.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Obsidian looks a release up by the version of the manifest, so a tag
+      # naming another one is a release nobody would ever be offered.
+      - name: Check the tag against the manifest
+        run: |
+          version="$(node -p "require('./manifest.json').version")"
+
+          if [ "$TAG" != "$version" ]; then
+            echo "The tag ($TAG) is not the version of manifest.json ($version)." >&2
+            exit 1
+          fi
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run the tests
+        run: npm test
 
       - name: Build plugin
-        run: |
-          npm install
-          npm run build
+        run: npm run build
+
+      - name: Attest the build
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${GITHUB_REF#refs/tags/}"
-
-          gh release create "$tag" \
-            --title="$tag" \
+          gh release create "$TAG" \
+            --title="$TAG" \
             --draft \
             main.js manifest.json styles.css
