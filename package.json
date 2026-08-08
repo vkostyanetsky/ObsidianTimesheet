@@ -18,17 +18,17 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^24.13.3",
-		"@typescript-eslint/eslint-plugin": "^8.65.0",
+		"@types/node": "^26.1.2",
+		"@typescript-eslint/eslint-plugin": "^8.66.0",
 		"@typescript-eslint/parser": "^8.65.0",
-		"builtin-modules": "3.3.0",
+		"builtin-modules": "5.3.0",
 		"esbuild": "^0.28.1",
 		"eslint": "^10.8.0",
 		"happy-dom": "^20.11.1",
-		"js-yaml": "^4.3.1",
-		"obsidian": "^1.5.7-1",
-		"tslib": "2.4.0",
-		"typescript": "^5.9.3",
+		"js-yaml": "^5.2.3",
+		"obsidian": "^1.13.1",
+		"tslib": "2.8.1",
+		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"
 	}
 }
