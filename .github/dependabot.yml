@@ -8,6 +8,21 @@ updates:
     groups:
       dependencies:
         patterns: ["*"]
+    ignore:
+      # TypeScript 6 forces "esModuleInterop", and under it the namespace
+      # import of moment in "obsidian.d.ts" is no longer callable: every
+      # moment() call in the plugin stops compiling. TypeScript 7 removes
+      # "baseUrl" outright, and typescript-eslint has no support for it yet.
+      # Minor and patch updates are still welcome; drop this once the API
+      # type definitions the app ships are compatible again.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # The stub the tests are pointed at parses YAML the way the app does,
+      # and the app bundles js-yaml 4: since version 5 an input of nothing
+      # but comments throws instead of yielding null, so a query the vault
+      # accepts would look invalid in a test. Keep the versions in step.
+      - dependency-name: "js-yaml"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
