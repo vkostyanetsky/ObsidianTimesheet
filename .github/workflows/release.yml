@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The tag to build the release from
+        description: The tag to build the release from (created if it is missing)
         required: true
 
 permissions:
@@ -26,9 +26,28 @@ jobs:
       TAG: ${{ inputs.tag || github.ref_name }}
 
     steps:
+      # A version is sometimes committed without a tag to go with it, and then
+      # there is nothing for the checkout below to fetch. Such a run builds the
+      # head of the default branch instead, and tags it once the build has
+      # proven the commit is worth a tag.
+      - name: Look the tag up
+        id: tag
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "ref=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "The tag $TAG does not exist yet; building $DEFAULT_BRANCH."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "ref=$DEFAULT_BRANCH" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ steps.tag.outputs.ref }}
 
       - name: Use Node.js
         uses: actions/setup-node@v7
@@ -66,6 +85,18 @@ jobs:
             main.js
             manifest.json
             styles.css
+
+      # The tag is written down only now, so that a commit which fails to build
+      # leaves no tag behind to be confused for a release later. A tag pushed
+      # with GITHUB_TOKEN starts no second run of this workflow.
+      - name: Tag the build
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$TAG" \
+            -f sha="$(git rev-parse HEAD)"
 
       - name: Create release
         env:
