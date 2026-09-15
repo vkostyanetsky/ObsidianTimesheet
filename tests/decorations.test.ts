@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { EditorState } from "@codemirror/state";
+import { EditorView, WidgetType } from "@codemirror/view";
+
 import {
+	createTaskDecorationExtension,
 	decorateTasksInReadingView,
 	getTaskAffixes,
 } from "../src/decorations";
@@ -104,6 +108,100 @@ describe("getTaskAffixes", () => {
 			before: "",
 			after: "",
 		});
+	});
+});
+
+/**
+ * Returns the texts the editor shows around the records of a note, told
+ * apart by the line and the side they belong to: `2:before:@ `.
+ */
+function affixesInEditor(
+	settings: TimesheetSettings,
+	...lines: string[]
+): string[] {
+	const extension = createTaskDecorationExtension(() => settings);
+	const view = new EditorView({
+		state: EditorState.create({ doc: "", extensions: [extension] }),
+		parent: document.body.appendChild(document.createElement("div")),
+	});
+
+	// A view of a test shows nothing until its viewport is measured, so the
+	// note is typed into an empty view instead of being given to it at once.
+	view.dispatch({ changes: { from: 0, insert: lines.join("\n") } });
+
+	const result: string[] = [];
+	const decorations = view.plugin(extension)?.decorations;
+	const cursor = decorations?.iter();
+
+	while (cursor !== undefined && cursor.value !== null) {
+		const widget = cursor.value.spec.widget as WidgetType;
+		const el = widget.toDOM(view);
+		const side = el.className.includes("-before") ? "before" : "after";
+
+		result.push(
+			`${view.state.doc.lineAt(cursor.from).number}:${side}:${el.textContent}`
+		);
+
+		cursor.next();
+	}
+
+	view.destroy();
+
+	return result;
+}
+
+describe("createTaskDecorationExtension", () => {
+	it("shows the texts of a sheet type around a record", () => {
+		expect(
+			affixesInEditor(settingsWith(WORK), "- [ ] WORK-1 a")
+		).toEqual(["1:before:💼 ", "1:after: (work)"]);
+	});
+
+	it("shows nothing around a record of a fenced code block", () => {
+		// Such a record is a sample of a record: the note only tells about it
+		// instead of writing it down.
+		expect(
+			affixesInEditor(
+				settingsWith(WORK),
+				"```",
+				"- [ ] WORK-1 a sample",
+				"```"
+			)
+		).toEqual([]);
+	});
+
+	it("shows the texts around the records a code block stands between", () => {
+		expect(
+			affixesInEditor(
+				settingsWith(HOBBY),
+				"- [ ] HOBBY-1 a",
+				"```",
+				"- [ ] HOBBY-2 a sample",
+				"```",
+				"- [ ] HOBBY-3 b"
+			)
+		).toEqual(["1:before:🎸 ", "5:before:🎸 "]);
+	});
+
+	it("shows nothing around the records below a code block left unclosed", () => {
+		expect(
+			affixesInEditor(
+				settingsWith(HOBBY),
+				"- [ ] HOBBY-1 a",
+				"~~~",
+				"- [ ] HOBBY-2 a sample"
+			)
+		).toEqual(["1:before:🎸 "]);
+	});
+
+	it("shows the texts around a record with an inline code span in it", () => {
+		expect(
+			affixesInEditor(
+				settingsWith(HOBBY),
+				"- [ ] HOBBY-1 publishing ```EInvoicing```",
+				"- [ ] HOBBY-2 b"
+			)
+		).toEqual(["1:before:🎸 ", "2:before:🎸 "]);
 	});
 });
 

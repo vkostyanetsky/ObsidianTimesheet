@@ -152,6 +152,42 @@ describe("TimeLogsParser.timeLogs", () => {
 		expect(timeLog.intervalString).toBe("");
 	});
 
+	it("ignores the records of a fenced code block", () => {
+		const timeLogs = TimeLogsParser.timeLogs(
+			[
+				"- [x] 09:00-10:00 TASK-1 a real record",
+				"",
+				"```",
+				"- [ ] 10:00-11:00 TASK-2 a sample",
+				"- [ ] 11:00-12:00 TASK-3 one more sample",
+				"```",
+				"",
+				"- [x] 12:00-13:00 TASK-4 a real record again",
+			].join("\n"),
+			TASK_PATTERNS
+		);
+
+		expect(timeLogs.map((timeLog) => timeLog.taskNumber)).toEqual([
+			"TASK-1",
+			"TASK-4",
+		]);
+	});
+
+	it("takes an inline code span for no code block", () => {
+		const timeLogs = TimeLogsParser.timeLogs(
+			[
+				"- [x] 09:00-10:00 TASK-1 publishing ```EInvoicing```",
+				"- [x] 10:00-11:00 TASK-2 a record after it",
+			].join("\n"),
+			TASK_PATTERNS
+		);
+
+		expect(timeLogs.map((timeLog) => timeLog.taskNumber)).toEqual([
+			"TASK-1",
+			"TASK-2",
+		]);
+	});
+
 	it("trims the title of a record", () => {
 		const [timeLog] = TimeLogsParser.timeLogs(
 			"- [x]    TASK-1 a   ",

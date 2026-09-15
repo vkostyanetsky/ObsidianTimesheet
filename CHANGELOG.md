@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.8.1 - 2026-09-15
+
+### Fixed
+
+* Task records written inside a fenced code block are no longer counted by a report. Such a block shows a sample of a text rather than a part of a day, so the time it mentions has never been spent.
+* The texts of a sheet type (**Text before task** and **Text after task**) are no longer shown around the records of a fenced code block either, for the very same reason.
+* A block of any fence is taken into account, as well as a block left unclosed, which lasts till the end of a note the way Markdown sees it. A triple backtick used as an inline code span, though, is not taken for a block of its own.
+
 ## 1.8.0 - 2026-08-01
 
 ### Changed

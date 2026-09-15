@@ -1,20 +1,29 @@
 import { moment } from "obsidian"
 
+import CodeBlocks from "./code-blocks";
+import { TimeLog } from "./types";
+
+/** A task record: a list item with a checkbox, no matter whether it is done. */
+const TASK_LINE_REGEXP = /^- \[.\] \s*(.*)$/;
+
 export default class TimeLogsParser {
 
 	public static timeLogs(text: string, taskNumberPatterns: string[]) {
-		const result = [];
-        const regexp = /^- \[.\] \s*(.*)$/gm;
+		const result: TimeLog[] = [];
 
-		let match;
+		CodeBlocks.contentLines(text).forEach(line => {
+			const match = TASK_LINE_REGEXP.exec(line);
 
-		while ((match = regexp.exec(text)) !== null) {
-            const timeLog = this.getTimeLog(match[1], taskNumberPatterns);
+			if (match === null) {
+				return;
+			}
 
-            if (timeLog !== undefined) {
-                result.push(timeLog);
-            }			
-		}
+			const timeLog = this.getTimeLog(match[1], taskNumberPatterns);
+
+			if (timeLog !== undefined) {
+				result.push(timeLog);
+			}
+		});
 
 		return result;
 	}

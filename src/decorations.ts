@@ -10,6 +10,7 @@ import {
 
 import { RangeSetBuilder } from "@codemirror/state";
 
+import CodeBlocks from "./code-blocks";
 import TimeLogsParser from "./parser";
 
 import {
@@ -138,6 +139,7 @@ export function createTaskDecorationExtension(
 			private buildDecorations(view: EditorView): DecorationSet {
 				const builder = new RangeSetBuilder<Decoration>();
 				const settings = getSettings();
+				const codeBlockLines = this.codeBlockLines(view);
 
 				for (const { from, to } of view.visibleRanges) {
 					let position = from;
@@ -149,6 +151,10 @@ export function createTaskDecorationExtension(
 						position = line.to + 1;
 
 						if (match === null || match[2].trim() === "") {
+							continue;
+						}
+
+						if (codeBlockLines.has(line.number)) {
 							continue;
 						}
 
@@ -185,6 +191,38 @@ export function createTaskDecorationExtension(
 				}
 
 				return builder.finish();
+			}
+
+			/**
+			 * Returns the numbers of the lines belonging to a fenced code
+			 * block: a record of such a block is a sample of a record, so it
+			 * gets no texts around it.
+			 *
+			 * A fence is known by the lines above it, and the viewport may
+			 * begin anywhere, so the note is read from its very first line
+			 * down to the last line shown.
+			 */
+			private codeBlockLines(view: EditorView): Set<number> {
+				const result = new Set<number>();
+				const ranges = view.visibleRanges;
+
+				if (ranges.length === 0) {
+					return result;
+				}
+
+				const lastLine = view.state.doc.lineAt(
+					ranges[ranges.length - 1].to
+				).number;
+
+				const codeBlocks = new CodeBlocks();
+
+				for (let number = 1; number <= lastLine; number++) {
+					if (codeBlocks.covers(view.state.doc.line(number).text)) {
+						result.add(number);
+					}
+				}
+
+				return result;
 			}
 		},
 		{
