@@ -1,6 +1,6 @@
 {
 	"name": "timesheet",
-	"version": "1.8.1",
+	"version": "1.8.2",
 	"description": "Timesheet generator for Obsidian.",
 	"main": "main.js",
 	"scripts": {
@@ -25,10 +25,10 @@
 		"esbuild": "^0.28.1",
 		"eslint": "^10.8.0",
 		"happy-dom": "^20.11.1",
-		"js-yaml": "^4.3.1",
+		"js-yaml": "^4.3.2",
 		"obsidian": "^1.5.7-1",
 		"tslib": "2.4.0",
 		"typescript": "^5.9.3",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	}
 }

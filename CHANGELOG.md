@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.8.2 - 2026-09-26
+
+### Security
+
+* Updated the development dependencies with known vulnerabilities: `js-yaml` (4.3.2), `vitest` (4.1.11), and `nanoid` (3.3.19), which `vitest` pulls in. None of them is a part of the plugin a vault gets, so the plugin itself has never been affected.
+
 ## 1.8.1 - 2026-09-15
 
 ### Fixed
